@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.profold.framework.ui.theme.FrameworkFoldTheme
+import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -222,74 +223,84 @@ fun GridCell(
         Modifier
     }
 
-    // Track slot positions relative to the cell Box for canvas drawing
+    // Track slot positions relative to the outer Box for canvas drawing
     val slotCenters = remember { mutableStateMapOf<Int, Offset>() }
-    var cellCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var outerCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .clip(shape)
-            .background(if (isSelected) Color(0xFF444444) else Color(0xFF333333), shape)
-            .then(borderMod)
-            .clickable { onTap() }
-            .padding(8.dp)
-            .onGloballyPositioned { cellCoords = it },
-        contentAlignment = Alignment.Center
+            .onGloballyPositioned { outerCoords = it }
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        // Clipped background + content
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(shape)
+                .background(if (isSelected) Color(0xFF444444) else Color(0xFF333333), shape)
+                .then(borderMod)
+                .clickable { onTap() }
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = cell.name,
-                color = if (isSelected) Color(0xFFAAAAAA) else Color(0xFF666666),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                lineHeight = 12.sp
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = cell.name,
+                    color = if (isSelected) Color(0xFFAAAAAA) else Color(0xFF666666),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 12.sp
+                )
 
-            Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-            // Slot row — 9 mini squares
-            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                for (s in 1..9) {
-                    val isShaded = s in cell.slots
-                    val color = if (isShaded) {
-                        FrameworkData.slotColors[s] ?: Color(0xFF666666)
-                    } else {
-                        Color(0xFF2A2A2A)
+                // Slot row — 9 mini squares
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    for (s in 1..9) {
+                        val isShaded = s in cell.slots
+                        val color = if (isShaded) {
+                            FrameworkData.slotColors[s] ?: Color(0xFF666666)
+                        } else {
+                            Color(0xFF2A2A2A)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(color, RoundedCornerShape(1.dp))
+                                .onGloballyPositioned { coords ->
+                                    val oc = outerCoords ?: return@onGloballyPositioned
+                                    val posInOuter = oc.localPositionOf(coords, Offset.Zero)
+                                    slotCenters[s] = Offset(
+                                        posInOuter.x + coords.size.width / 2f,
+                                        posInOuter.y + coords.size.height / 2f
+                                    )
+                                }
+                        )
                     }
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(color, RoundedCornerShape(1.dp))
-                            .onGloballyPositioned { coords ->
-                                val cc = cellCoords ?: return@onGloballyPositioned
-                                val posInCell = cc.localPositionOf(coords, Offset.Zero)
-                                slotCenters[s] = Offset(
-                                    posInCell.x + coords.size.width / 2f,
-                                    posInCell.y + coords.size.height / 2f
-                                )
-                            }
-                    )
                 }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "${cell.row},${cell.col}",
+                    color = Color(0xFF555555),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "${cell.row},${cell.col}",
-                color = Color(0xFF555555),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Medium
-            )
         }
 
-        // Canvas overlay for traversal path lines
+        // Canvas overlay — unclipped so arcs can extend beyond cell bounds
         if (slotCenters.size == 9 && cell.path.size > 1) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { clip = false }
+            ) {
                 val lineColor = Color(0xFF888888)
                 val dotColor = Color(0xFF888888)
                 val strokeStyle = Stroke(width = 1.5f, cap = StrokeCap.Round)
