@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,18 +33,28 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.profold.framework.ui.theme.FrameworkFoldTheme
+import kotlin.math.abs
+import kotlin.math.max
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -104,12 +115,10 @@ fun ExpandedLayout(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Main 4x4 grid
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Column titles
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -129,7 +138,6 @@ fun ExpandedLayout(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 4x4 grid
             for (r in 0..3) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -151,7 +159,6 @@ fun ExpandedLayout(
             }
         }
 
-        // Detail panel
         if (selectedCell != null) {
             Spacer(modifier = Modifier.width(24.dp))
             CellDetail(
@@ -179,7 +186,6 @@ fun CompactLayout(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Compact 4x4 grid (smaller cells)
         for (r in 0..3) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -216,6 +222,10 @@ fun GridCell(
         Modifier
     }
 
+    // Track slot positions relative to the cell Box for canvas drawing
+    val slotCenters = remember { mutableStateMapOf<Int, Offset>() }
+    var cellCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
     Box(
         modifier = modifier
             .aspectRatio(1f)
@@ -223,14 +233,14 @@ fun GridCell(
             .background(if (isSelected) Color(0xFF444444) else Color(0xFF333333), shape)
             .then(borderMod)
             .clickable { onTap() }
-            .padding(8.dp),
+            .padding(8.dp)
+            .onGloballyPositioned { cellCoords = it },
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Cell name
             Text(
                 text = cell.name,
                 color = if (isSelected) Color(0xFFAAAAAA) else Color(0xFF666666),
@@ -255,19 +265,81 @@ fun GridCell(
                         modifier = Modifier
                             .size(8.dp)
                             .background(color, RoundedCornerShape(1.dp))
+                            .onGloballyPositioned { coords ->
+                                val cc = cellCoords ?: return@onGloballyPositioned
+                                val posInCell = cc.localPositionOf(coords, Offset.Zero)
+                                slotCenters[s] = Offset(
+                                    posInCell.x + coords.size.width / 2f,
+                                    posInCell.y + coords.size.height / 2f
+                                )
+                            }
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Coordinate label
             Text(
                 text = "${cell.row},${cell.col}",
                 color = Color(0xFF555555),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Medium
             )
+        }
+
+        // Canvas overlay for traversal path lines
+        if (slotCenters.size == 9 && cell.path.size > 1) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val lineColor = Color(0xFF888888)
+                val dotColor = Color(0xFF888888)
+                val strokeStyle = Stroke(width = 1.5f, cap = StrokeCap.Round)
+                val dotRadius = 3f
+
+                val path = cell.path
+                val arcs = cell.arcs
+
+                for (i in 0 until path.size - 1) {
+                    val fromSlot = path[i]
+                    val toSlot = path[i + 1]
+                    val from = slotCenters[fromSlot] ?: continue
+                    val to = slotCenters[toSlot] ?: continue
+
+                    if (fromSlot == toSlot) {
+                        // Self-loop: teardrop below the node
+                        val loopPath = Path().apply {
+                            moveTo(from.x, from.y)
+                            cubicTo(
+                                from.x - 12f, from.y + 24f,
+                                from.x + 12f, from.y + 24f,
+                                from.x, from.y
+                            )
+                        }
+                        drawPath(loopPath, lineColor, style = strokeStyle)
+                    } else if (i in arcs) {
+                        // Arc: quadratic bezier
+                        val dx = abs(to.x - from.x)
+                        val arcHeight = max(dx * 0.5f, 20f)
+                        val midX = (from.x + to.x) / 2f
+                        val isLast = (i == path.size - 2)
+                        val midY = if (isLast) from.y - arcHeight else from.y + arcHeight
+
+                        val arcPath = Path().apply {
+                            moveTo(from.x, from.y)
+                            quadraticTo(midX, midY, to.x, to.y)
+                        }
+                        drawPath(arcPath, lineColor, style = strokeStyle)
+                    } else {
+                        // Straight line
+                        drawLine(lineColor, from, to, strokeWidth = 1.5f, cap = StrokeCap.Round)
+                    }
+                }
+
+                // Dots at each stop
+                for (slotNum in path) {
+                    val center = slotCenters[slotNum] ?: continue
+                    drawCircle(dotColor, dotRadius, center)
+                }
+            }
         }
     }
 }
@@ -295,7 +367,6 @@ fun CellDetail(cell: FrameworkCell, modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Slot breakdown
         Text(
             text = "SLOTS",
             color = Color(0xFF888888),
@@ -306,7 +377,6 @@ fun CellDetail(cell: FrameworkCell, modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Show each active slot with its word and color
         cell.slots.forEach { slotNum ->
             val word = FrameworkData.slotWords[slotNum] ?: ""
             val color = FrameworkData.slotColors[slotNum] ?: Color.Gray
@@ -337,7 +407,6 @@ fun CellDetail(cell: FrameworkCell, modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Traversal path
         Text(
             text = "PATH",
             color = Color(0xFF888888),
