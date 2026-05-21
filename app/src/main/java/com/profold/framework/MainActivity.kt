@@ -45,15 +45,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.profold.framework.ui.theme.FrameworkFoldTheme
-import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -149,6 +149,8 @@ fun ExpandedLayout(
                         GridCell(
                             cell = cell,
                             isSelected = selectedCell == cell,
+                            slotSize = 14.dp,
+                            slotGap = 3.dp,
                             modifier = Modifier.weight(1f),
                             onTap = {
                                 onCellSelected(if (selectedCell == cell) null else cell)
@@ -187,6 +189,25 @@ fun CompactLayout(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            FrameworkData.columnTitles.forEach { title ->
+                Text(
+                    text = title.uppercase(),
+                    color = Color(0xFF666666),
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         for (r in 0..3) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -197,6 +218,8 @@ fun CompactLayout(
                     GridCell(
                         cell = cell,
                         isSelected = selectedCell == cell,
+                        slotSize = 10.dp,
+                        slotGap = 2.dp,
                         modifier = Modifier.weight(1f),
                         onTap = {
                             onCellSelected(if (selectedCell == cell) null else cell)
@@ -213,6 +236,8 @@ fun CompactLayout(
 fun GridCell(
     cell: FrameworkCell,
     isSelected: Boolean,
+    slotSize: Dp = 14.dp,
+    slotGap: Dp = 3.dp,
     modifier: Modifier = Modifier,
     onTap: () -> Unit
 ) {
@@ -223,7 +248,6 @@ fun GridCell(
         Modifier
     }
 
-    // Track slot positions relative to the outer Box for canvas drawing
     val slotCenters = remember { mutableStateMapOf<Int, Offset>() }
     var outerCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
@@ -240,37 +264,35 @@ fun GridCell(
                 .background(if (isSelected) Color(0xFF444444) else Color(0xFF333333), shape)
                 .then(borderMod)
                 .clickable { onTap() }
-                .padding(8.dp),
+                .padding(horizontal = 6.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                // Coordinate label (like web version)
                 Text(
-                    text = cell.name,
-                    color = if (isSelected) Color(0xFFAAAAAA) else Color(0xFF666666),
+                    text = "${cell.row},${cell.col}",
+                    color = Color(0xFF555555),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 12.sp
+                    letterSpacing = 1.sp
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Slot row — 9 mini squares
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                // Slot row — 9 squares matching web's 14x14 slots
+                Row(horizontalArrangement = Arrangement.spacedBy(slotGap)) {
                     for (s in 1..9) {
                         val isShaded = s in cell.slots
-                        val color = if (isShaded) {
-                            FrameworkData.slotColors[s] ?: Color(0xFF666666)
-                        } else {
-                            Color(0xFF2A2A2A)
-                        }
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
-                                .background(color, RoundedCornerShape(1.dp))
+                                .size(slotSize)
+                                .background(
+                                    if (isShaded) Color(0xFF666666) else Color(0xFF2A2A2A),
+                                    RoundedCornerShape(2.dp)
+                                )
                                 .onGloballyPositioned { coords ->
                                     val oc = outerCoords ?: return@onGloballyPositioned
                                     val posInOuter = oc.localPositionOf(coords, Offset.Zero)
@@ -285,11 +307,14 @@ fun GridCell(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                // Cell name — subtle, below the slots
                 Text(
-                    text = "${cell.row},${cell.col}",
-                    color = Color(0xFF555555),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Medium
+                    text = cell.name,
+                    color = if (isSelected) Color(0xFF888888) else Color(0xFF4A4A4A),
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 10.sp
                 )
             }
         }
