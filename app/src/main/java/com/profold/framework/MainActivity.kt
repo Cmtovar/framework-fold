@@ -7,20 +7,23 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
@@ -38,7 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -49,7 +51,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -73,8 +74,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// ─── Colors matching the web CSS ────────────────────────────────────────────
-
+// Colors matching the web CSS
 private val BG = Color(0xFF1A1A1A)
 private val CELL_BG = Color(0xFF333333)
 private val CELL_BG_ACTIVE = Color(0xFF444444)
@@ -97,8 +97,9 @@ private val CONN_ACTIVE = Color(0xFF555555)
 private val CHUTE_COLOR = Color(0xFF5A3A2A)
 private val CHUTE_ACTIVE = Color(0xFFC47A4A)
 private val COLUMN_TITLE_COLOR = Color(0xFF404040)
-
-// ─── Main screen ────────────────────────────────────────────────────────────
+private val NAV_BTN_BG = Color(0xFF2A2A2A)
+private val NAV_BTN_ACTIVE = Color(0xFF444444)
+private val NAV_BTN_TEXT = Color(0xFF888888)
 
 @Composable
 fun FrameworkScreen(widthSizeClass: WindowWidthSizeClass) {
@@ -113,80 +114,137 @@ fun FrameworkScreen(widthSizeClass: WindowWidthSizeClass) {
     }
 }
 
-// ─── Expanded layout: grid + tree side by side ──────────────────────────────
+// Navigation helpers
+private fun moveUp(activeIndex: Int): Int {
+    val row = activeIndex / FrameworkData.COLS
+    return if (row > 0) activeIndex - FrameworkData.COLS else activeIndex
+}
 
+private fun moveDown(activeIndex: Int): Int {
+    val row = activeIndex / FrameworkData.COLS
+    return if (row < FrameworkData.ROWS - 1) activeIndex + FrameworkData.COLS else activeIndex
+}
+
+private fun moveNext(activeIndex: Int): Int {
+    val row = activeIndex / FrameworkData.COLS
+    val col = activeIndex % FrameworkData.COLS
+    val next = FrameworkData.horizontalNext[col] ?: return activeIndex
+    return row * FrameworkData.COLS + next.target
+}
+
+private fun moveChute(activeIndex: Int): Int {
+    return FrameworkData.chuteLookup[activeIndex] ?: activeIndex
+}
+
+// Expanded layout: grid above tree, both stacked vertically
 @Composable
 fun ExpandedLayout(
     activeIndex: Int,
     bfsResult: FrameworkData.BfsResult,
     onCellTap: (Int) -> Unit
 ) {
-    Row(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        // Grid + column titles + legend
+        val availableWidth = maxWidth
+        val gap = 16.dp
+        val cellWidth = (availableWidth - gap * 3) / 4
+        val cellHeight = cellWidth * 0.56f
+        val slotSize = (cellWidth.value * 0.069f).dp
+
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             FrameworkGrid(
                 activeIndex = activeIndex,
                 bfsResult = bfsResult,
-                cellWidth = 160.dp,
-                cellHeight = 90.dp,
-                slotSize = 11.dp,
-                gap = 20.dp,
+                cellWidth = cellWidth,
+                cellHeight = cellHeight,
+                slotSize = slotSize,
+                gap = gap,
                 onCellTap = onCellTap
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TreePanel(
+                activeIndex = activeIndex,
+                bfsResult = bfsResult,
+                onNodeTap = onCellTap,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(280.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            NavigationControls(
+                activeIndex = activeIndex,
+                onNavigate = onCellTap
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
-
-        Spacer(modifier = Modifier.width(24.dp))
-
-        // Tree panel
-        TreePanel(
-            activeIndex = activeIndex,
-            bfsResult = bfsResult,
-            onNodeTap = onCellTap,
-            modifier = Modifier
-                .width(300.dp)
-                .height(450.dp)
-        )
     }
 }
 
-// ─── Compact layout: scrollable grid ────────────────────────────────────────
-
+// Compact layout: scrollable, auto-sized to fit width
 @Composable
 fun CompactLayout(
     activeIndex: Int,
     bfsResult: FrameworkData.BfsResult,
     onCellTap: (Int) -> Unit
 ) {
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(horizontal = 8.dp)
     ) {
-        FrameworkGrid(
-            activeIndex = activeIndex,
-            bfsResult = bfsResult,
-            cellWidth = 80.dp,
-            cellHeight = 55.dp,
-            slotSize = 6.dp,
-            gap = 6.dp,
-            onCellTap = onCellTap
-        )
+        val availableWidth = maxWidth
+        val gap = 6.dp
+        val cellWidth = (availableWidth - gap * 3) / 4
+        val cellHeight = cellWidth * 0.65f
+        val slotSize = (cellWidth.value * 0.069f).dp
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            FrameworkGrid(
+                activeIndex = activeIndex,
+                bfsResult = bfsResult,
+                cellWidth = cellWidth,
+                cellHeight = cellHeight,
+                slotSize = slotSize,
+                gap = gap,
+                onCellTap = onCellTap
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            NavigationControls(
+                activeIndex = activeIndex,
+                onNavigate = onCellTap
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+        }
     }
 }
 
-// ─── 4×4 Grid with connection lines ─────────────────────────────────────────
-
+// 4x4 Grid with connection lines BEHIND cells
 @Composable
 fun FrameworkGrid(
     activeIndex: Int,
@@ -197,15 +255,25 @@ fun FrameworkGrid(
     gap: Dp,
     onCellTap: (Int) -> Unit
 ) {
-    // Track cell center positions for connection lines
     val cellCenters = remember { mutableStateMapOf<Int, Offset>() }
     var gridCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     Box(
         modifier = Modifier.onGloballyPositioned { gridCoords = it }
     ) {
+        // Connection lines BEHIND cells (z-index 0 in web CSS)
+        if (cellCenters.size == 16) {
+            Canvas(
+                modifier = Modifier
+                    .matchParentSize()
+                    .graphicsLayer { clip = false }
+            ) {
+                drawConnectionLines(cellCenters, activeIndex)
+            }
+        }
+
+        // Grid content ON TOP (z-index 1 in web CSS)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // 4 rows of 4 cells
             for (r in 0 until FrameworkData.ROWS) {
                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                     for (c in 0 until FrameworkData.COLS) {
@@ -222,9 +290,7 @@ fun FrameworkGrid(
                             cellHeight = cellHeight,
                             slotSize = slotSize,
                             onTap = { onCellTap(idx) },
-                            onPositioned = { center ->
-                                cellCenters[idx] = center
-                            },
+                            onPositioned = { center -> cellCenters[idx] = center },
                             gridCoords = gridCoords
                         )
                     }
@@ -248,27 +314,14 @@ fun FrameworkGrid(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Legend
             ConnectionLegend()
-        }
-
-        // Connection lines overlay
-        if (cellCenters.size == 16) {
-            Canvas(
-                modifier = Modifier
-                    .matchParentSize()
-                    .graphicsLayer { clip = false }
-            ) {
-                drawConnectionLines(cellCenters, activeIndex)
-            }
         }
     }
 }
 
-// ─── Single cell ────────────────────────────────────────────────────────────
-
+// Single cell
 @Composable
 fun FrameworkCell(
     row: Int,
@@ -309,7 +362,6 @@ fun FrameworkCell(
                 ))
             }
     ) {
-        // Background
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -349,12 +401,11 @@ fun FrameworkCell(
                 )
             }
 
-            // Center content: coordinate + slot row
+            // Center: coordinate + slots
             Column(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Coordinate label
                 Text(
                     text = key,
                     color = if (isActive) TEXT_LABEL_ACTIVE else TEXT_LABEL,
@@ -365,7 +416,6 @@ fun FrameworkCell(
 
                 Spacer(modifier = Modifier.height(if (isCompact) 2.dp else 4.dp))
 
-                // 9 slot squares
                 Row(horizontalArrangement = Arrangement.spacedBy(if (isCompact) 1.dp else 3.dp)) {
                     for (s in 1..FrameworkData.SLOTS_PER_ROW) {
                         val isShaded = s in shadedSlots
@@ -401,7 +451,7 @@ fun FrameworkCell(
             )
         }
 
-        // Traversal path overlay (unclipped)
+        // Traversal path overlay (unclipped, on top of cell)
         if (slotCenters.size == FrameworkData.SLOTS_PER_ROW && path.size > 1) {
             val lineCol = if (isActive) LINE_COLOR_ACTIVE else LINE_COLOR
             val dotCol = if (isActive) DOT_COLOR_ACTIVE else DOT_COLOR
@@ -417,8 +467,96 @@ fun FrameworkCell(
     }
 }
 
-// ─── Draw traversal paths inside a cell ─────────────────────────────────────
+// Navigation controls: Up, Down, Next (horizontal cycle), Chute
+@Composable
+fun NavigationControls(
+    activeIndex: Int,
+    onNavigate: (Int) -> Unit
+) {
+    val hasChute = FrameworkData.chuteLookup.containsKey(activeIndex)
+    val row = activeIndex / FrameworkData.COLS
 
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // Up button
+        NavButton(
+            label = "W",
+            enabled = row > 0,
+            onClick = { onNavigate(moveUp(activeIndex)) }
+        )
+
+        // Middle row: Left, Chute, Right
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left = horizontal previous (reverse cycle)
+            NavButton(
+                label = "A",
+                enabled = true,
+                onClick = { onNavigate(movePrev(activeIndex)) }
+            )
+
+            // Chute button
+            NavButton(
+                label = "/",
+                enabled = hasChute,
+                onClick = { if (hasChute) onNavigate(moveChute(activeIndex)) }
+            )
+
+            // Right = horizontal next (forward cycle)
+            NavButton(
+                label = "D",
+                enabled = true,
+                onClick = { onNavigate(moveNext(activeIndex)) }
+            )
+        }
+
+        // Down button
+        NavButton(
+            label = "S",
+            enabled = row < FrameworkData.ROWS - 1,
+            onClick = { onNavigate(moveDown(activeIndex)) }
+        )
+    }
+}
+
+private fun movePrev(activeIndex: Int): Int {
+    val row = activeIndex / FrameworkData.COLS
+    val col = activeIndex % FrameworkData.COLS
+    // Reverse cycle: 0←1←3←2←0 means prev of 0=1, 1=3, 2=0, 3=2
+    val prevCol = when (col) {
+        0 -> 1
+        1 -> 3
+        2 -> 0
+        3 -> 2
+        else -> col
+    }
+    return row * FrameworkData.COLS + prevCol
+}
+
+@Composable
+fun NavButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(if (enabled) NAV_BTN_BG else NAV_BTN_BG.copy(alpha = 0.3f))
+            .clickable(enabled = enabled) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = if (enabled) NAV_BTN_TEXT else NAV_BTN_TEXT.copy(alpha = 0.3f),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+// Draw traversal paths inside a cell
 private fun DrawScope.drawTraversalPath(
     path: List<Int>,
     arcs: List<Int>,
@@ -435,14 +573,12 @@ private fun DrawScope.drawTraversalPath(
         val to = slotCenters[toSlot] ?: continue
 
         if (fromSlot == toSlot) {
-            // Self-loop teardrop
             val loopPath = Path().apply {
                 moveTo(from.x, from.y)
                 cubicTo(from.x - 12f, from.y + 24f, from.x + 12f, from.y + 24f, from.x, from.y)
             }
             drawPath(loopPath, lineColor, style = strokeStyle)
         } else if (i in arcs) {
-            // Quadratic bezier arc
             val dx = abs(to.x - from.x)
             val arcHeight = max(dx * 0.5f, 20f)
             val midX = (from.x + to.x) / 2f
@@ -455,25 +591,21 @@ private fun DrawScope.drawTraversalPath(
             }
             drawPath(arcPath, lineColor, style = strokeStyle)
         } else {
-            // Straight line
             drawLine(lineColor, from, to, strokeWidth = 1.5f, cap = StrokeCap.Round)
         }
     }
 
-    // Dots at each stop
     for (slotNum in path) {
         val center = slotCenters[slotNum] ?: continue
         drawCircle(dotColor, 3f, center)
     }
 }
 
-// ─── Draw connection lines between cells ────────────────────────────────────
-
+// Draw connection lines between cells
 private fun DrawScope.drawConnectionLines(
     cellCenters: Map<Int, Offset>,
     activeIndex: Int
 ) {
-    val stepDash: PathEffect? = null
     val jumpDash = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
     val chuteDash = PathEffect.dashPathEffect(floatArrayOf(3f, 3f))
 
@@ -505,7 +637,7 @@ private fun DrawScope.drawConnectionLines(
             FrameworkData.ConnectionType.STEP -> {
                 color = if (isActive) CONN_ACTIVE else CONN_COLOR
                 width = if (isActive) 2.5f else 2f
-                dash = stepDash
+                dash = null
             }
         }
 
@@ -520,22 +652,19 @@ private fun DrawScope.drawConnectionLines(
     }
 }
 
-// ─── Connection legend ──────────────────────────────────────────────────────
-
+// Connection legend
 @Composable
 fun ConnectionLegend() {
     Row(
         horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Step
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Canvas(modifier = Modifier.size(20.dp, 2.dp)) {
                 drawLine(CONN_COLOR, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f)
             }
             Text("Step (1)", color = TEXT_LABEL, fontSize = 10.sp)
         }
-        // Jump
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Canvas(modifier = Modifier.size(20.dp, 2.dp)) {
                 drawLine(CONN_COLOR, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f,
@@ -543,7 +672,6 @@ fun ConnectionLegend() {
             }
             Text("Jump (2)", color = TEXT_LABEL, fontSize = 10.sp)
         }
-        // Chute
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Canvas(modifier = Modifier.size(20.dp, 2.dp)) {
                 drawLine(CHUTE_COLOR, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f,
@@ -554,8 +682,7 @@ fun ConnectionLegend() {
     }
 }
 
-// ─── Tree panel ─────────────────────────────────────────────────────────────
-
+// Tree panel
 @Composable
 fun TreePanel(
     activeIndex: Int,
@@ -570,7 +697,6 @@ fun TreePanel(
     val levelGap = 80f
     val padding = 30f
 
-    // Group nodes by distance level
     val levels = mutableMapOf<Int, MutableList<Int>>()
     var maxDist = 0
     for (i in 0 until n) {
@@ -583,7 +709,6 @@ fun TreePanel(
     val svgW = 400f
     val svgH = (maxDist + 1) * levelGap + padding * 2
 
-    // Compute positions
     val pos = mutableMapOf<Int, Offset>()
     for (d in 0..maxDist) {
         val nodesAtLevel = levels[d] ?: continue
@@ -602,7 +727,6 @@ fun TreePanel(
 
         fun scaled(p: Offset) = Offset(p.x * scale + offsetX, p.y * scale)
 
-        // Draw edges
         for (i in 0 until n) {
             if (dist[i] <= 0) continue
             for (p in parents[i]) {
@@ -627,7 +751,6 @@ fun TreePanel(
             }
         }
 
-        // Draw nodes
         for (i in 0 until n) {
             val p = pos[i] ?: continue
             val sp = scaled(p)
