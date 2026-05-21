@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
@@ -125,11 +127,26 @@ private fun moveDown(activeIndex: Int): Int {
     return if (row < FrameworkData.ROWS - 1) activeIndex + FrameworkData.COLS else activeIndex
 }
 
-private fun moveNext(activeIndex: Int): Int {
+// Horizontal right: only works from columns 0,2 (ArrowRight)
+private fun moveRight(activeIndex: Int): Int {
     val row = activeIndex / FrameworkData.COLS
     val col = activeIndex % FrameworkData.COLS
-    val next = FrameworkData.horizontalNext[col] ?: return activeIndex
-    return row * FrameworkData.COLS + next.target
+    return when (col) {
+        0 -> row * FrameworkData.COLS + 2  // 0→2
+        2 -> row * FrameworkData.COLS + 3  // 2→3
+        else -> activeIndex
+    }
+}
+
+// Horizontal left: only works from columns 3,1 (ArrowLeft)
+private fun moveLeft(activeIndex: Int): Int {
+    val row = activeIndex / FrameworkData.COLS
+    val col = activeIndex % FrameworkData.COLS
+    return when (col) {
+        3 -> row * FrameworkData.COLS + 1  // 3→1
+        1 -> row * FrameworkData.COLS + 0  // 1→0
+        else -> activeIndex
+    }
 }
 
 private fun moveChute(activeIndex: Int): Int {
@@ -475,6 +492,7 @@ fun NavigationControls(
 ) {
     val hasChute = FrameworkData.chuteLookup.containsKey(activeIndex)
     val row = activeIndex / FrameworkData.COLS
+    val col = activeIndex % FrameworkData.COLS
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -492,11 +510,11 @@ fun NavigationControls(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left = horizontal previous (reverse cycle)
+            // Left: only works from columns 3,1
             NavButton(
                 label = "A",
-                enabled = true,
-                onClick = { onNavigate(movePrev(activeIndex)) }
+                enabled = col == 3 || col == 1,
+                onClick = { onNavigate(moveLeft(activeIndex)) }
             )
 
             // Chute button
@@ -506,11 +524,11 @@ fun NavigationControls(
                 onClick = { if (hasChute) onNavigate(moveChute(activeIndex)) }
             )
 
-            // Right = horizontal next (forward cycle)
+            // Right: only works from columns 0,2
             NavButton(
                 label = "D",
-                enabled = true,
-                onClick = { onNavigate(moveNext(activeIndex)) }
+                enabled = col == 0 || col == 2,
+                onClick = { onNavigate(moveRight(activeIndex)) }
             )
         }
 
@@ -523,19 +541,6 @@ fun NavigationControls(
     }
 }
 
-private fun movePrev(activeIndex: Int): Int {
-    val row = activeIndex / FrameworkData.COLS
-    val col = activeIndex % FrameworkData.COLS
-    // Reverse cycle: 0←1←3←2←0 means prev of 0=1, 1=3, 2=0, 3=2
-    val prevCol = when (col) {
-        0 -> 1
-        1 -> 3
-        2 -> 0
-        3 -> 2
-        else -> col
-    }
-    return row * FrameworkData.COLS + prevCol
-}
 
 @Composable
 fun NavButton(label: String, enabled: Boolean, onClick: () -> Unit) {
@@ -682,7 +687,7 @@ fun ConnectionLegend() {
     }
 }
 
-// Tree panel
+// Tree panel with labels and tap detection
 @Composable
 fun TreePanel(
     activeIndex: Int,
@@ -719,57 +724,118 @@ fun TreePanel(
         }
     }
 
-    Canvas(modifier = modifier) {
-        val scaleX = size.width / svgW
-        val scaleY = size.height / svgH
-        val scale = minOf(scaleX, scaleY)
-        val offsetX = (size.width - svgW * scale) / 2f
+    // Store scaled positions for tap detection
+    var scaledPositions by remember { mutableStateOf(mapOf<Int, Offset>()) }
+    var scaledRadius by remember { mutableStateOf(0f) }
 
-        fun scaled(p: Offset) = Offset(p.x * scale + offsetX, p.y * scale)
+    val labelPaint = remember {
+        android.graphics.Paint().apply {
+            textAlign = android.graphics.Paint.Align.CENTER
+            isAntiAlias = true
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+        }
+    }
 
-        for (i in 0 until n) {
-            if (dist[i] <= 0) continue
-            for (p in parents[i]) {
-                val pPos = pos[p] ?: continue
-                val iPos = pos[i] ?: continue
-                val type = FrameworkData.edgeTypes["$p-$i"] ?: FrameworkData.ConnectionType.STEP
-
-                val color: Color
-                val dash: PathEffect?
-                when (type) {
-                    FrameworkData.ConnectionType.JUMP -> {
-                        color = CONN_COLOR; dash = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
-                    }
-                    FrameworkData.ConnectionType.CHUTE -> {
-                        color = CHUTE_COLOR; dash = PathEffect.dashPathEffect(floatArrayOf(3f, 3f))
-                    }
-                    FrameworkData.ConnectionType.STEP -> {
-                        color = CONN_COLOR; dash = null
+    Box(modifier = modifier
+        .pointerInput(activeIndex) {
+            detectTapGestures { tapOffset ->
+                val r = scaledRadius
+                for ((idx, center) in scaledPositions) {
+                    val dx = tapOffset.x - center.x
+                    val dy = tapOffset.y - center.y
+                    if (dx * dx + dy * dy <= r * r) {
+                        onNodeTap(idx)
+                        break
                     }
                 }
-                drawLine(color, scaled(pPos), scaled(iPos), strokeWidth = 1.5f * scale, pathEffect = dash)
             }
         }
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val scaleX = size.width / svgW
+            val scaleY = size.height / svgH
+            val scale = minOf(scaleX, scaleY)
+            val offsetX = (size.width - svgW * scale) / 2f
 
-        for (i in 0 until n) {
-            val p = pos[i] ?: continue
-            val sp = scaled(p)
-            val isSource = i == activeIndex
+            fun scaled(p: Offset) = Offset(p.x * scale + offsetX, p.y * scale)
+
+            val newPositions = mutableMapOf<Int, Offset>()
             val r = nodeR * scale
+            scaledRadius = r
 
-            drawCircle(
-                color = if (isSource) CELL_BG_ACTIVE else CELL_BG,
-                radius = r,
-                center = sp
-            )
-            if (isSource) {
-                drawCircle(
-                    color = Color(0xFF666666),
-                    radius = r,
-                    center = sp,
-                    style = Stroke(width = 2f * scale)
-                )
+            // Draw edges
+            for (i in 0 until n) {
+                if (dist[i] <= 0) continue
+                for (p in parents[i]) {
+                    val pPos = pos[p] ?: continue
+                    val iPos = pos[i] ?: continue
+                    val type = FrameworkData.edgeTypes["$p-$i"] ?: FrameworkData.ConnectionType.STEP
+
+                    val color: Color
+                    val dash: PathEffect?
+                    when (type) {
+                        FrameworkData.ConnectionType.JUMP -> {
+                            color = CONN_COLOR; dash = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
+                        }
+                        FrameworkData.ConnectionType.CHUTE -> {
+                            color = CHUTE_COLOR; dash = PathEffect.dashPathEffect(floatArrayOf(3f, 3f))
+                        }
+                        FrameworkData.ConnectionType.STEP -> {
+                            color = CONN_COLOR; dash = null
+                        }
+                    }
+                    drawLine(color, scaled(pPos), scaled(iPos), strokeWidth = 1.5f * scale, pathEffect = dash)
+                }
             }
+
+            // Draw nodes with labels
+            labelPaint.textSize = 11f * scale
+            for (i in 0 until n) {
+                val p = pos[i] ?: continue
+                val sp = scaled(p)
+                newPositions[i] = sp
+                val isSource = i == activeIndex
+
+                drawCircle(
+                    color = if (isSource) CELL_BG_ACTIVE else CELL_BG,
+                    radius = r,
+                    center = sp
+                )
+                if (isSource) {
+                    drawCircle(
+                        color = Color(0xFF666666),
+                        radius = r,
+                        center = sp,
+                        style = Stroke(width = 2f * scale)
+                    )
+                }
+
+                // Coordinate label inside node
+                val row = i / FrameworkData.COLS
+                val col = i % FrameworkData.COLS
+                labelPaint.color = if (isSource) 0xFF999999.toInt() else 0xFF555555.toInt()
+                drawContext.canvas.nativeCanvas.drawText(
+                    "$row,$col",
+                    sp.x,
+                    sp.y + labelPaint.textSize / 3f,
+                    labelPaint
+                )
+
+                // Distance below node (non-source only)
+                if (!isSource && dist[i] > 0) {
+                    labelPaint.textSize = 10f * scale
+                    labelPaint.color = 0xFF555555.toInt()
+                    drawContext.canvas.nativeCanvas.drawText(
+                        "${dist[i]}",
+                        sp.x,
+                        sp.y + r + 12f * scale,
+                        labelPaint
+                    )
+                    labelPaint.textSize = 11f * scale
+                }
+            }
+
+            scaledPositions = newPositions
         }
     }
 }
