@@ -283,6 +283,7 @@ const orders = {
 
 // Horizontal: 0->2 (jump), 2->3 (step), 3->1 (jump), 1->0 (step)
 const horizNext = {0:{target:2,jump:true},2:{target:3,jump:false},3:{target:1,jump:true},1:{target:0,jump:false}};
+const vertNext = {0:{target:2,jump:true},2:{target:3,jump:false},3:{target:1,jump:true},1:{target:0,jump:false}};
 
 const chuteDefs = [[0,0,3,2],[0,1,3,3],[0,2,3,0],[0,3,3,1],[1,0,2,2],[1,1,2,3],[2,0,1,2],[2,1,1,3]];
 const chuteLookup = {};
@@ -295,10 +296,10 @@ chuteDefs.forEach(([r1,c1,r2,c2]) => {
 function getNeighbors(idx) {
   const r = Math.floor(idx/COLS), c = idx%COLS;
   const nb = [];
-  if (r > 0) nb.push(idx - COLS);
-  if (r < ROWS-1) nb.push(idx + COLS);
+  const v = vertNext[r];
+  nb.push(v.target * COLS + c);
   const h = horizNext[c];
-  nb.push(r*COLS + h.target);
+  nb.push(r * COLS + h.target);
   if (chuteLookup[idx] !== undefined) nb.push(chuteLookup[idx]);
   return nb;
 }
@@ -330,7 +331,8 @@ const connections = [];
 for (let r=0; r<ROWS; r++) {
   for (let c=0; c<COLS; c++) {
     const idx = r*COLS+c;
-    if (r < ROWS-1) connections.push({from:idx, to:idx+COLS, type:'step', directed:false});
+    const v = vertNext[r];
+    connections.push({from:idx, to:v.target*COLS+c, type:v.jump?'jump':'step', directed:true});
     const h = horizNext[c];
     connections.push({from:idx, to:r*COLS+h.target, type:h.jump?'jump':'step', directed:true});
   }
@@ -658,20 +660,22 @@ document.getElementById('tree-canvas').addEventListener('click', (e) => {
 // Navigation
 function updateNav() {
   const r = Math.floor(activeIndex/COLS), c = activeIndex%COLS;
-  document.getElementById('btn-up').disabled = r <= 0;
-  document.getElementById('btn-down').disabled = r >= ROWS-1;
+  document.getElementById('btn-up').disabled = !(r===3||r===1);
+  document.getElementById('btn-down').disabled = !(r===0||r===2);
   document.getElementById('btn-left').disabled = !(c===3||c===1);
   document.getElementById('btn-right').disabled = !(c===0||c===2);
   document.getElementById('btn-chute').disabled = chuteLookup[activeIndex] === undefined;
 }
 
 document.getElementById('btn-up').addEventListener('click', () => {
-  const r = Math.floor(activeIndex/COLS);
-  if (r > 0) setActive(activeIndex - COLS);
+  const r = Math.floor(activeIndex/COLS), c = activeIndex%COLS;
+  if (r===3) setActive(1*COLS+c);
+  else if (r===1) setActive(0*COLS+c);
 });
 document.getElementById('btn-down').addEventListener('click', () => {
-  const r = Math.floor(activeIndex/COLS);
-  if (r < ROWS-1) setActive(activeIndex + COLS);
+  const r = Math.floor(activeIndex/COLS), c = activeIndex%COLS;
+  if (r===0) setActive(2*COLS+c);
+  else if (r===2) setActive(3*COLS+c);
 });
 document.getElementById('btn-left').addEventListener('click', () => {
   const c = activeIndex%COLS;
