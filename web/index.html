@@ -24,6 +24,7 @@ body {
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   width: 100%;
+  max-width: 900px;
 }
 
 .cell {
@@ -123,7 +124,7 @@ body {
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   width: 100%;
-  max-width: 100%;
+  max-width: 900px;
   margin-top: 4px;
 }
 .column-titles span {
@@ -148,8 +149,8 @@ body {
   color: #555;
 }
 .legend-line {
-  width: 20px;
-  height: 2px;
+  width: 36px;
+  height: 4px;
 }
 
 #nav-controls {
@@ -183,7 +184,7 @@ body {
 
 #tree-container {
   width: 100%;
-  max-width: 100%;
+  max-width: 900px;
   margin-top: 16px;
 }
 #tree-canvas {
@@ -193,12 +194,8 @@ body {
 }
 
 @media (max-width: 480px) {
-  .cell-words { font-size: 7px; gap: 3px; }
-  .cell-distance { font-size: 12px; }
-  .cell-coord { font-size: 8px; }
-  .slot { width: 5px; height: 5px; }
-  .cell-slots { gap: 1px; }
-  .cell-name { font-size: 7px; bottom: 2px; }
+  body { padding: 8px; }
+  #grid-container { gap: 4px; }
   .nav-btn { width: 40px; height: 40px; font-size: 14px; }
   #tree-canvas { height: 200px; }
 }
@@ -219,15 +216,15 @@ body {
 
 <div class="legend">
   <div class="legend-item">
-    <canvas class="legend-line" width="20" height="2" id="legend-step"></canvas>
+    <canvas class="legend-line" width="36" height="4" id="legend-step"></canvas>
     <span>Step (1)</span>
   </div>
   <div class="legend-item">
-    <canvas class="legend-line" width="20" height="2" id="legend-jump"></canvas>
+    <canvas class="legend-line" width="36" height="4" id="legend-jump"></canvas>
     <span>Jump (2)</span>
   </div>
   <div class="legend-item">
-    <canvas class="legend-line" width="20" height="2" id="legend-chute"></canvas>
+    <canvas class="legend-line" width="36" height="4" id="legend-chute"></canvas>
     <span>Chute / Ladder</span>
   </div>
 </div>
@@ -514,15 +511,15 @@ function drawConnections() {
 
     let color, width, dash;
     if (conn.type === 'chute') {
-      color = isActive ? '#c47a4a' : '#5a3a2a';
+      color = isActive ? '#c47a4a' : '#6a4a3a';
       width = isActive ? 2.5 : 1.5;
       dash = [3,3];
     } else if (conn.type === 'jump') {
-      color = isActive ? '#555' : '#2a2a2a';
+      color = isActive ? '#777' : '#444';
       width = isActive ? 2.5 : 2;
       dash = [6,4];
     } else {
-      color = isActive ? '#555' : '#2a2a2a';
+      color = isActive ? '#777' : '#444';
       width = isActive ? 2.5 : 2;
       dash = [];
     }
@@ -589,13 +586,13 @@ function drawTree() {
       const type = edgeTypes[`${p}-${i}`] || 'step';
 
       if (type === 'chute') {
-        ctx.strokeStyle = '#5a3a2a';
+        ctx.strokeStyle = '#6a4a3a';
         ctx.setLineDash([3,3]);
       } else if (type === 'jump') {
-        ctx.strokeStyle = '#2a2a2a';
+        ctx.strokeStyle = '#444';
         ctx.setLineDash([6,4]);
       } else {
-        ctx.strokeStyle = '#2a2a2a';
+        ctx.strokeStyle = '#444';
         ctx.setLineDash([]);
       }
       ctx.lineWidth = 1.5;
@@ -705,18 +702,18 @@ document.addEventListener('keydown', (e) => {
 // Legend drawing
 function drawLegend() {
   const step = document.getElementById('legend-step').getContext('2d');
-  step.strokeStyle = '#2a2a2a'; step.lineWidth = 2;
-  step.beginPath(); step.moveTo(0,1); step.lineTo(20,1); step.stroke();
+  step.strokeStyle = '#444'; step.lineWidth = 2;
+  step.beginPath(); step.moveTo(0,2); step.lineTo(36,2); step.stroke();
 
   const jump = document.getElementById('legend-jump').getContext('2d');
-  jump.strokeStyle = '#2a2a2a'; jump.lineWidth = 2;
+  jump.strokeStyle = '#444'; jump.lineWidth = 2;
   jump.setLineDash([6,4]);
-  jump.beginPath(); jump.moveTo(0,1); jump.lineTo(20,1); jump.stroke();
+  jump.beginPath(); jump.moveTo(0,2); jump.lineTo(36,2); jump.stroke();
 
   const chute = document.getElementById('legend-chute').getContext('2d');
-  chute.strokeStyle = '#5a3a2a'; chute.lineWidth = 2;
+  chute.strokeStyle = '#6a4a3a'; chute.lineWidth = 2;
   chute.setLineDash([3,3]);
-  chute.beginPath(); chute.moveTo(0,1); chute.lineTo(20,1); chute.stroke();
+  chute.beginPath(); chute.moveTo(0,2); chute.lineTo(36,2); chute.stroke();
 }
 
 // Resize handler
