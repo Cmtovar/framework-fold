@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -77,32 +78,68 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Colors matching the web CSS
-private val BG = Color(0xFF1A1A1A)
-private val CELL_BG = Color(0xFF333333)
-private val CELL_BG_ACTIVE = Color(0xFF444444)
-private val SLOT_BG = Color(0xFF2A2A2A)
-private val SLOT_SHADED = Color(0xFF666666)
-private val TEXT_LABEL = Color(0xFF555555)
-private val TEXT_LABEL_ACTIVE = Color(0xFF999999)
-private val TEXT_WORDS = Color(0xFF4A4A4A)
-private val TEXT_WORDS_ACTIVE = Color(0xFF999999)
-private val TEXT_DISTANCE = Color(0xFF3A3A3A)
-private val TEXT_DISTANCE_ACTIVE = Color(0xFF666666)
-private val TEXT_BOTTOM = Color(0xFF4A4A4A)
-private val TEXT_BOTTOM_ACTIVE = Color(0xFF999999)
-private val LINE_COLOR = Color(0xFF888888)
-private val LINE_COLOR_ACTIVE = Color(0xFFAAAAAA)
-private val DOT_COLOR = Color(0xFF888888)
-private val DOT_COLOR_ACTIVE = Color(0xFFAAAAAA)
-private val CONN_COLOR = Color(0xFF2A2A2A)
-private val CONN_ACTIVE = Color(0xFF555555)
-private val CHUTE_COLOR = Color(0xFF5A3A2A)
-private val CHUTE_ACTIVE = Color(0xFFC47A4A)
-private val COLUMN_TITLE_COLOR = Color(0xFF404040)
-private val NAV_BTN_BG = Color(0xFF2A2A2A)
-private val NAV_BTN_ACTIVE = Color(0xFF444444)
-private val NAV_BTN_TEXT = Color(0xFF888888)
+// Surface colors
+private val BG = Color(0xFF141418)
+private val SURFACE_RAISED = Color(0xFF1E1E24)
+private val CELL_BG = Color(0xFF26262E)
+private val CELL_BG_ACTIVE = Color(0xFF32323C)
+private val SLOT_BG = Color(0xFF1A1A20)
+private val SLOT_SHADED = Color(0xFF8A8A96)
+
+// Column accent colors
+private val COL_COLORS = listOf(
+    Color(0xFFE06040), // Exposure (col 0) - red-orange
+    Color(0xFF4CB87A), // Abundance (col 1) - green
+    Color(0xFF5C9CE6), // Investment (col 2) - blue
+    Color(0xFFC07AE6)  // Occlusion (col 3) - purple
+)
+private val COL_COLORS_DIM = listOf(
+    Color(0xFF6B3020), Color(0xFF245C3D), Color(0xFF2E4E73), Color(0xFF603D73)
+)
+private val COL_TINTS = listOf(
+    Color(0xFF2A1F1C), Color(0xFF1C2A22), Color(0xFF1C2028), Color(0xFF241C2A)
+)
+
+// Text hierarchy
+private val TEXT_PRIMARY = Color(0xFFE8E8F0)
+private val TEXT_SECONDARY = Color(0xFFA8A8B4)
+private val TEXT_TERTIARY = Color(0xFF6E6E7A)
+private val TEXT_DISABLED = Color(0xFF4A4A54)
+
+// Connection colors
+private val CONN_STEP = Color(0xFF70A8E0)
+private val CONN_STEP_ACTIVE = Color(0xFFA0D0FF)
+private val CONN_STEP_DIM = Color(0xFF3A5670)
+private val CONN_JUMP = Color(0xFFE0A040)
+private val CONN_JUMP_ACTIVE = Color(0xFFFFC860)
+private val CONN_JUMP_DIM = Color(0xFF705020)
+private val CONN_CHUTE = Color(0xFFD47A4A)
+private val CONN_CHUTE_ACTIVE = Color(0xFFF0A070)
+private val CONN_CHUTE_DIM = Color(0xFF6A3D25)
+
+// Traversal path colors
+private val LINE_COLOR = Color(0xFF8A8A96)
+private val LINE_COLOR_ACTIVE = Color(0xFFA8A8B4)
+private val DOT_COLOR = Color(0xFF8A8A96)
+private val DOT_COLOR_ACTIVE = Color(0xFFA8A8B4)
+
+// Active state
+private val ACTIVE_BORDER = Color(0xFFF0F0FF)
+private val ACTIVE_GLOW = Color(0x40C8C8FF)
+
+// BFS distance gradient
+private val BFS_COLORS = listOf(
+    Color.Transparent,    // distance 0 (active cell)
+    Color(0xFFA0DCFF),    // distance 1
+    Color(0xFF80B8D8),    // distance 2
+    Color(0xFF6094B0),    // distance 3
+    Color(0xFF4A7890),    // distance 4
+    Color(0xFF3A6070)     // distance 5+
+)
+
+// Nav
+private val NAV_BTN_BG = Color(0xFF26262E)
+private val NAV_BTN_TEXT = Color(0xFFA8A8B4)
 
 @Composable
 fun FrameworkScreen(widthSizeClass: WindowWidthSizeClass) {
@@ -320,11 +357,11 @@ fun FrameworkGrid(
 
             // Column titles at bottom
             Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-                FrameworkData.columnTitles.forEach { title ->
+                FrameworkData.columnTitles.forEachIndexed { col, title ->
                     Text(
                         text = title,
-                        color = COLUMN_TITLE_COLOR,
-                        fontSize = 10.sp,
+                        color = COL_COLORS[col],
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(cellWidth),
                         textAlign = TextAlign.Center
@@ -384,9 +421,21 @@ fun FrameworkCell(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(shape)
-                .background(if (isActive) CELL_BG_ACTIVE else CELL_BG)
+                .background(if (isActive) CELL_BG_ACTIVE else COL_TINTS[col])
+                .then(
+                    if (isActive) Modifier.border(2.dp, ACTIVE_BORDER, shape)
+                    else Modifier
+                )
                 .clickable { onTap() }
         ) {
+            // Border-top accent
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(if (isActive) COL_COLORS[col] else COL_COLORS_DIM[col])
+                    .align(Alignment.TopStart)
+            )
             // Words row at top
             if (!isCompact) {
                 Row(
@@ -398,7 +447,7 @@ fun FrameworkCell(
                     words.forEach { word ->
                         Text(
                             text = word,
-                            color = if (isActive) TEXT_WORDS_ACTIVE else TEXT_WORDS,
+                            color = if (isActive) TEXT_PRIMARY else TEXT_TERTIARY,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -410,7 +459,7 @@ fun FrameworkCell(
             if (distance != null) {
                 Text(
                     text = "$distance",
-                    color = if (isActive) TEXT_DISTANCE_ACTIVE else TEXT_DISTANCE,
+                    color = BFS_COLORS[minOf(distance, 5)],
                     fontSize = if (isCompact) 12.sp else 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier
@@ -426,7 +475,7 @@ fun FrameworkCell(
             ) {
                 Text(
                     text = key,
-                    color = if (isActive) TEXT_LABEL_ACTIVE else TEXT_LABEL,
+                    color = if (isActive) TEXT_PRIMARY else TEXT_SECONDARY,
                     fontSize = if (isCompact) 8.sp else 10.sp,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 1.sp
@@ -460,7 +509,7 @@ fun FrameworkCell(
             // Cell name at bottom
             Text(
                 text = cellName,
-                color = if (isActive) TEXT_BOTTOM_ACTIVE else TEXT_BOTTOM,
+                color = if (isActive) TEXT_PRIMARY else TEXT_SECONDARY,
                 fontSize = if (isCompact) 7.sp else 10.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
@@ -612,8 +661,8 @@ private fun DrawScope.drawConnectionLines(
     cellCenters: Map<Int, Offset>,
     activeIndex: Int
 ) {
-    val jumpDash = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
-    val chuteDash = PathEffect.dashPathEffect(floatArrayOf(3f, 3f))
+    val jumpDash = PathEffect.dashPathEffect(floatArrayOf(10f, 6f))
+    val chuteDash = PathEffect.dashPathEffect(floatArrayOf(3f, 3f, 8f, 3f))
 
     FrameworkData.connections.forEach { conn ->
         val from = cellCenters[conn.from] ?: return@forEach
@@ -631,18 +680,18 @@ private fun DrawScope.drawConnectionLines(
 
         when (conn.type) {
             FrameworkData.ConnectionType.CHUTE -> {
-                color = if (isActive) CHUTE_ACTIVE else CHUTE_COLOR
-                width = if (isActive) 2.5f else 1.5f
+                color = if (isActive) CONN_CHUTE_ACTIVE else CONN_CHUTE_DIM
+                width = if (isActive) 3f else 2f
                 dash = chuteDash
             }
             FrameworkData.ConnectionType.JUMP -> {
-                color = if (isActive) CONN_ACTIVE else CONN_COLOR
-                width = if (isActive) 2.5f else 2f
+                color = if (isActive) CONN_JUMP_ACTIVE else CONN_JUMP_DIM
+                width = if (isActive) 3f else 2f
                 dash = jumpDash
             }
             FrameworkData.ConnectionType.STEP -> {
-                color = if (isActive) CONN_ACTIVE else CONN_COLOR
-                width = if (isActive) 2.5f else 2f
+                color = if (isActive) CONN_STEP_ACTIVE else CONN_STEP_DIM
+                width = if (isActive) 2.5f else 1.5f
                 dash = null
             }
         }
@@ -667,23 +716,23 @@ fun ConnectionLegend() {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Canvas(modifier = Modifier.size(20.dp, 2.dp)) {
-                drawLine(CONN_COLOR, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f)
+                drawLine(CONN_STEP, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f)
             }
-            Text("Step (1)", color = TEXT_LABEL, fontSize = 10.sp)
+            Text("Step (1)", color = TEXT_TERTIARY, fontSize = 10.sp)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Canvas(modifier = Modifier.size(20.dp, 2.dp)) {
-                drawLine(CONN_COLOR, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f)))
+                drawLine(CONN_JUMP, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f)))
             }
-            Text("Jump (2)", color = TEXT_LABEL, fontSize = 10.sp)
+            Text("Jump (2)", color = TEXT_TERTIARY, fontSize = 10.sp)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Canvas(modifier = Modifier.size(20.dp, 2.dp)) {
-                drawLine(CHUTE_COLOR, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f, 3f)))
+                drawLine(CONN_CHUTE, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f, 3f, 8f, 3f)))
             }
-            Text("Chute / Ladder", color = TEXT_LABEL, fontSize = 10.sp)
+            Text("Chute / Ladder", color = TEXT_TERTIARY, fontSize = 10.sp)
         }
     }
 }
@@ -776,13 +825,13 @@ fun TreePanel(
                     val dash: PathEffect?
                     when (type) {
                         FrameworkData.ConnectionType.JUMP -> {
-                            color = CONN_COLOR; dash = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
+                            color = CONN_JUMP_DIM; dash = PathEffect.dashPathEffect(floatArrayOf(10f, 6f))
                         }
                         FrameworkData.ConnectionType.CHUTE -> {
-                            color = CHUTE_COLOR; dash = PathEffect.dashPathEffect(floatArrayOf(3f, 3f))
+                            color = CONN_CHUTE_DIM; dash = PathEffect.dashPathEffect(floatArrayOf(3f, 3f, 8f, 3f))
                         }
                         FrameworkData.ConnectionType.STEP -> {
-                            color = CONN_COLOR; dash = null
+                            color = CONN_STEP_DIM; dash = null
                         }
                     }
                     drawLine(color, scaled(pPos), scaled(iPos), strokeWidth = 1.5f * scale, pathEffect = dash)
@@ -796,25 +845,25 @@ fun TreePanel(
                 val sp = scaled(p)
                 newPositions[i] = sp
                 val isSource = i == activeIndex
+                val col = i % FrameworkData.COLS
 
+                // Node fill: column accent at 30% opacity
                 drawCircle(
-                    color = if (isSource) CELL_BG_ACTIVE else CELL_BG,
+                    color = COL_COLORS[col].copy(alpha = 0.3f),
                     radius = r,
                     center = sp
                 )
-                if (isSource) {
-                    drawCircle(
-                        color = Color(0xFF666666),
-                        radius = r,
-                        center = sp,
-                        style = Stroke(width = 2f * scale)
-                    )
-                }
+                // Node border
+                drawCircle(
+                    color = if (isSource) ACTIVE_BORDER else COL_COLORS_DIM[col],
+                    radius = r,
+                    center = sp,
+                    style = Stroke(width = if (isSource) 2f * scale else 1.5f * scale)
+                )
 
                 // Coordinate label inside node
                 val row = i / FrameworkData.COLS
-                val col = i % FrameworkData.COLS
-                labelPaint.color = if (isSource) 0xFF999999.toInt() else 0xFF555555.toInt()
+                labelPaint.color = if (isSource) 0xFFE8E8F0.toInt() else 0xFFA8A8B4.toInt()
                 drawContext.canvas.nativeCanvas.drawText(
                     "$row,$col",
                     sp.x,
@@ -825,7 +874,14 @@ fun TreePanel(
                 // Distance below node (non-source only)
                 if (!isSource && dist[i] > 0) {
                     labelPaint.textSize = 10f * scale
-                    labelPaint.color = 0xFF555555.toInt()
+                    val bfsColorIndex = minOf(dist[i], 5)
+                    val bfsCol = BFS_COLORS[bfsColorIndex]
+                    labelPaint.color = android.graphics.Color.argb(
+                        (bfsCol.alpha * 255).toInt(),
+                        (bfsCol.red * 255).toInt(),
+                        (bfsCol.green * 255).toInt(),
+                        (bfsCol.blue * 255).toInt()
+                    )
                     drawContext.canvas.nativeCanvas.drawText(
                         "${dist[i]}",
                         sp.x,

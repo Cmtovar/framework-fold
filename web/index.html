@@ -5,10 +5,52 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Framework Fold</title>
 <style>
+:root {
+  --surface-base: #141418;
+  --surface-raised: #1e1e24;
+  --surface-cell: #26262e;
+  --surface-cell-active: #32323c;
+  --surface-slot: #1a1a20;
+  --surface-slot-shaded: #8a8a96;
+  --surface-nav: #26262e;
+  --col-exposure: #e06040;
+  --col-exposure-dim: #6b3020;
+  --col-exposure-tint: #2a1f1c;
+  --col-abundance: #4cb87a;
+  --col-abundance-dim: #245c3d;
+  --col-abundance-tint: #1c2a22;
+  --col-investment: #5c9ce6;
+  --col-investment-dim: #2e4e73;
+  --col-investment-tint: #1c2028;
+  --col-occlusion: #c07ae6;
+  --col-occlusion-dim: #603d73;
+  --col-occlusion-tint: #241c2a;
+  --conn-step: #70a8e0;
+  --conn-step-active: #a0d0ff;
+  --conn-step-dim: #3a5670;
+  --conn-jump: #e0a040;
+  --conn-jump-active: #ffc860;
+  --conn-jump-dim: #705020;
+  --conn-chute: #d47a4a;
+  --conn-chute-active: #f0a070;
+  --conn-chute-dim: #6a3d25;
+  --text-primary: #e8e8f0;
+  --text-secondary: #a8a8b4;
+  --text-tertiary: #6e6e7a;
+  --text-disabled: #4a4a54;
+  --active-border: #f0f0ff;
+  --active-glow: rgba(200,200,255,0.25);
+  --bfs-d1: #a0dcff;
+  --bfs-d2: #80b8d8;
+  --bfs-d3: #6094b0;
+  --bfs-d4: #4a7890;
+  --bfs-d5: #3a6070;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  background: #1a1a1a;
-  color: #999;
+  background: var(--surface-base);
+  color: var(--text-secondary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   min-height: 100vh;
   display: flex;
@@ -29,7 +71,7 @@ body {
 
 .cell {
   position: relative;
-  background: #333;
+  background: var(--surface-cell);
   border-radius: 8px;
   aspect-ratio: 1;
   display: flex;
@@ -38,10 +80,30 @@ body {
   justify-content: center;
   cursor: pointer;
   overflow: visible;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s, border-color 0.15s;
   container-type: inline-size;
+  border: 2px solid transparent;
+  border-top: 3px solid transparent;
 }
-.cell.active { background: #444; }
+
+/* Column tints for inactive cells */
+.cell[data-col="0"] { background: var(--col-exposure-tint); border-top-color: var(--col-exposure-dim); }
+.cell[data-col="1"] { background: var(--col-abundance-tint); border-top-color: var(--col-abundance-dim); }
+.cell[data-col="2"] { background: var(--col-investment-tint); border-top-color: var(--col-investment-dim); }
+.cell[data-col="3"] { background: var(--col-occlusion-tint); border-top-color: var(--col-occlusion-dim); }
+
+/* Active cell */
+.cell.active {
+  background: var(--surface-cell-active);
+  border: 2px solid var(--active-border);
+  box-shadow: 0 0 16px 4px var(--active-glow);
+  transform: scale(1.03);
+  z-index: 10;
+}
+.cell.active[data-col="0"] { background: #3a2a24; border-top-color: var(--col-exposure); }
+.cell.active[data-col="1"] { background: #243a2c; border-top-color: var(--col-abundance); }
+.cell.active[data-col="2"] { background: #242a38; border-top-color: var(--col-investment); }
+.cell.active[data-col="3"] { background: #2e243a; border-top-color: var(--col-occlusion); }
 
 .cell-words {
   position: absolute;
@@ -52,9 +114,9 @@ body {
   gap: 0.4em;
   font-size: 7cqi;
   font-weight: 600;
-  color: #4a4a4a;
+  color: var(--text-tertiary);
 }
-.cell.active .cell-words { color: #999; }
+.cell.active .cell-words { color: var(--text-primary); }
 
 .cell-distance {
   position: absolute;
@@ -62,9 +124,7 @@ body {
   right: 6%;
   font-size: 9cqi;
   font-weight: 800;
-  color: #3a3a3a;
 }
-.cell.active .cell-distance { color: #666; }
 
 .cell-coord {
   position: absolute;
@@ -72,10 +132,10 @@ body {
   left: 4%;
   font-size: 9cqi;
   font-weight: 800;
-  color: #3a3a3a;
+  color: var(--text-secondary);
   letter-spacing: 1px;
 }
-.cell.active .cell-coord { color: #666; }
+.cell.active .cell-coord { color: var(--text-primary); }
 
 .cell-slots {
   display: flex;
@@ -87,18 +147,18 @@ body {
   width: 8.5%;
   aspect-ratio: 1;
   border-radius: 2px;
-  background: #2a2a2a;
+  background: var(--surface-slot);
 }
-.slot.shaded { background: #666; }
+.slot.shaded { background: var(--surface-slot-shaded); }
 
 .cell-name {
   position: absolute;
   bottom: 4%;
   font-size: 7cqi;
   font-weight: 600;
-  color: #4a4a4a;
+  color: var(--text-secondary);
 }
-.cell.active .cell-name { color: #999; }
+.cell.active .cell-name { color: var(--text-primary); }
 
 .cell-canvas {
   position: absolute;
@@ -129,9 +189,16 @@ body {
 }
 .column-titles span {
   text-align: center;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
-  color: #404040;
+}
+.column-titles span:nth-child(1) { color: var(--col-exposure); }
+.column-titles span:nth-child(2) { color: var(--col-abundance); }
+.column-titles span:nth-child(3) { color: var(--col-investment); }
+.column-titles span:nth-child(4) { color: var(--col-occlusion); }
+
+.column-titles-abbrev {
+  display: none;
 }
 
 .legend {
@@ -145,11 +212,11 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
-  color: #555;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 .legend-line {
-  width: 36px;
+  width: 48px;
   height: 4px;
 }
 
@@ -168,9 +235,9 @@ body {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #2a2a2a;
+  background: var(--surface-nav);
   border: none;
-  color: #888;
+  color: var(--text-secondary);
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
@@ -179,13 +246,17 @@ body {
   justify-content: center;
   transition: background 0.1s;
 }
-.nav-btn:hover:not(:disabled) { background: #444; }
+.nav-btn:hover:not(:disabled) { background: var(--surface-cell-active); }
 .nav-btn:disabled { opacity: 0.3; cursor: default; }
 
 #tree-container {
   width: 100%;
   max-width: 900px;
   margin-top: 16px;
+  background: var(--surface-raised);
+  border-radius: 12px;
+  border: 1px solid #2a2a34;
+  overflow: hidden;
 }
 #tree-canvas {
   width: 100%;
@@ -193,15 +264,65 @@ body {
   cursor: pointer;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   body { padding: 8px; }
-  #grid-container { gap: 4px; }
+  #grid-container { gap: 3px; }
   .nav-btn { width: 40px; height: 40px; font-size: 14px; }
   #tree-canvas { height: 200px; }
+
+  #nav-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    flex-direction: row;
+    justify-content: center;
+    background: var(--surface-base);
+    padding: 8px;
+    z-index: 100;
+    margin-top: 0;
+    gap: 4px;
+    border-top: 1px solid #2a2a34;
+  }
+  #nav-controls .nav-row {
+    gap: 4px;
+  }
+
+  .column-titles { display: none; }
+  .column-titles-abbrev {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 4px;
+  }
+  .column-titles-abbrev span {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .column-titles-abbrev span:nth-child(1) { color: var(--col-exposure); }
+  .column-titles-abbrev span:nth-child(2) { color: var(--col-abundance); }
+  .column-titles-abbrev span:nth-child(3) { color: var(--col-investment); }
+  .column-titles-abbrev span:nth-child(4) { color: var(--col-occlusion); }
+
+  body { padding-bottom: 70px; }
+}
+
+@media (max-width: 500px) {
+  .cell-words { display: none; }
 }
 </style>
 </head>
 <body>
+
+<div class="column-titles-abbrev">
+  <span>E</span>
+  <span>A</span>
+  <span>I</span>
+  <span>O</span>
+</div>
 
 <div id="grid-container">
   <canvas id="connections-canvas"></canvas>
@@ -216,15 +337,15 @@ body {
 
 <div class="legend">
   <div class="legend-item">
-    <canvas class="legend-line" width="36" height="4" id="legend-step"></canvas>
+    <canvas class="legend-line" width="48" height="4" id="legend-step"></canvas>
     <span>Step (1)</span>
   </div>
   <div class="legend-item">
-    <canvas class="legend-line" width="36" height="4" id="legend-jump"></canvas>
+    <canvas class="legend-line" width="48" height="4" id="legend-jump"></canvas>
     <span>Jump (2)</span>
   </div>
   <div class="legend-item">
-    <canvas class="legend-line" width="36" height="4" id="legend-chute"></canvas>
+    <canvas class="legend-line" width="48" height="4" id="legend-chute"></canvas>
     <span>Chute / Ladder</span>
   </div>
 </div>
@@ -292,6 +413,12 @@ chuteDefs.forEach(([r1,c1,r2,c2]) => {
   chuteLookup[a] = b;
   chuteLookup[b] = a;
 });
+
+// Column accent colors for JS use
+const colAccents = ['#e06040','#4cb87a','#5c9ce6','#c07ae6'];
+const colDims = ['#6b3020','#245c3d','#2e4e73','#603d73'];
+const bfsColors = ['','#a0dcff','#80b8d8','#6094b0','#4a7890','#3a6070'];
+const bfsOverlayAlpha = [0, 0.12, 0.08, 0.05, 0.03, 0.02];
 
 function getNeighbors(idx) {
   const r = Math.floor(idx/COLS), c = idx%COLS;
@@ -364,6 +491,7 @@ for (let r=0; r<ROWS; r++) {
     const el = document.createElement('div');
     el.className = 'cell';
     el.dataset.idx = idx;
+    el.dataset.col = c;
 
     const wordData = orders[key].path;
     const wordsHtml = wordData.map(s => slotWords[s]).join(' ');
@@ -398,10 +526,24 @@ function render() {
     if (isActive) {
       distEl.textContent = '';
       coordEl.style.display = 'none';
+      el.style.setProperty('--bfs-overlay', 'transparent');
     } else {
       const d = bfsResult.dist[idx];
       distEl.textContent = d >= 0 ? d : '';
       coordEl.style.display = '';
+
+      // BFS distance color for the number
+      const dClamped = Math.min(d, 5);
+      const bfsColor = bfsColors[dClamped] || bfsColors[5];
+      distEl.style.color = bfsColor;
+
+      // BFS distance overlay on cell background
+      const alpha = d >= 1 ? (bfsOverlayAlpha[Math.min(d, 5)] || 0.02) : 0;
+      if (alpha > 0) {
+        el.style.boxShadow = `inset 0 0 0 100px rgba(160,220,255,${alpha})`;
+      } else {
+        el.style.boxShadow = '';
+      }
     }
   });
   drawTraversalPaths();
@@ -453,7 +595,6 @@ function drawTraversalPaths() {
 
       ctx.beginPath();
       if (fromSlot === toSlot) {
-        // Self-loop
         ctx.moveTo(from.x, from.y);
         ctx.bezierCurveTo(from.x-12, from.y+24, from.x+12, from.y+24, from.x, from.y);
       } else if (arcs.includes(i)) {
@@ -513,16 +654,16 @@ function drawConnections() {
 
     let color, width, dash;
     if (conn.type === 'chute') {
-      color = isActive ? '#c47a4a' : '#6a4a3a';
-      width = isActive ? 2.5 : 1.5;
-      dash = [3,3];
+      color = isActive ? '#f0a070' : '#6a3d25';
+      width = isActive ? 3 : 2;
+      dash = [3,3,8,3];
     } else if (conn.type === 'jump') {
-      color = isActive ? '#777' : '#444';
-      width = isActive ? 2.5 : 2;
-      dash = [6,4];
+      color = isActive ? '#ffc860' : '#705020';
+      width = isActive ? 3 : 2;
+      dash = [10,6];
     } else {
-      color = isActive ? '#777' : '#444';
-      width = isActive ? 2.5 : 2;
+      color = isActive ? '#a0d0ff' : '#3a5670';
+      width = isActive ? 2.5 : 1.5;
       dash = [];
     }
 
@@ -551,7 +692,7 @@ function drawTree() {
 
   const {dist, parents} = bfsResult;
   const n = ROWS*COLS;
-  const nodeR = 18;
+  const nodeR = 22;
   const padding = 30;
   const w = rect.width, h = rect.height;
 
@@ -588,13 +729,13 @@ function drawTree() {
       const type = edgeTypes[`${p}-${i}`] || 'step';
 
       if (type === 'chute') {
-        ctx.strokeStyle = '#6a4a3a';
-        ctx.setLineDash([3,3]);
+        ctx.strokeStyle = '#6a3d25';
+        ctx.setLineDash([3,3,8,3]);
       } else if (type === 'jump') {
-        ctx.strokeStyle = '#444';
-        ctx.setLineDash([6,4]);
+        ctx.strokeStyle = '#705020';
+        ctx.setLineDash([10,6]);
       } else {
-        ctx.strokeStyle = '#444';
+        ctx.strokeStyle = '#3a5670';
         ctx.setLineDash([]);
       }
       ctx.lineWidth = 1.5;
@@ -612,27 +753,44 @@ function drawTree() {
     if (!p) continue;
     const isSource = i === activeIndex;
     const r = Math.floor(i/COLS), c = i%COLS;
+    const accent = colAccents[c];
+    const dim = colDims[c];
 
     ctx.beginPath();
     ctx.arc(p.x, p.y, nodeR, 0, Math.PI*2);
-    ctx.fillStyle = isSource ? '#444' : '#333';
+    // Fill with column accent at 30% opacity
+    ctx.fillStyle = accent + '4D'; // 4D = ~30% in hex
     ctx.fill();
+    // Border
+    ctx.strokeStyle = dim;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
     if (isSource) {
-      ctx.strokeStyle = '#666';
+      // Active node ring
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, nodeR + 2, 0, Math.PI*2);
+      ctx.strokeStyle = '#f0f0ff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, nodeR, 0, Math.PI*2);
+      ctx.strokeStyle = accent;
       ctx.lineWidth = 2;
       ctx.stroke();
     }
 
     // Label
-    ctx.fillStyle = isSource ? '#999' : '#555';
-    ctx.font = `bold 11px -apple-system, sans-serif`;
+    ctx.fillStyle = isSource ? '#e8e8f0' : '#a8a8b4';
+    ctx.font = `bold 12px -apple-system, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(`${r},${c}`, p.x, p.y);
 
-    // Distance below
+    // Distance below node
     if (!isSource && dist[i] > 0) {
-      ctx.fillStyle = '#555';
+      const dClamped = Math.min(dist[i], 5);
+      ctx.fillStyle = bfsColors[dClamped] || bfsColors[5];
       ctx.font = `10px -apple-system, sans-serif`;
       ctx.fillText(`${dist[i]}`, p.x, p.y + nodeR + 10);
     }
@@ -706,18 +864,18 @@ document.addEventListener('keydown', (e) => {
 // Legend drawing
 function drawLegend() {
   const step = document.getElementById('legend-step').getContext('2d');
-  step.strokeStyle = '#444'; step.lineWidth = 2;
-  step.beginPath(); step.moveTo(0,2); step.lineTo(36,2); step.stroke();
+  step.strokeStyle = '#3a5670'; step.lineWidth = 2;
+  step.beginPath(); step.moveTo(0,2); step.lineTo(48,2); step.stroke();
 
   const jump = document.getElementById('legend-jump').getContext('2d');
-  jump.strokeStyle = '#444'; jump.lineWidth = 2;
-  jump.setLineDash([6,4]);
-  jump.beginPath(); jump.moveTo(0,2); jump.lineTo(36,2); jump.stroke();
+  jump.strokeStyle = '#705020'; jump.lineWidth = 2;
+  jump.setLineDash([10,6]);
+  jump.beginPath(); jump.moveTo(0,2); jump.lineTo(48,2); jump.stroke();
 
   const chute = document.getElementById('legend-chute').getContext('2d');
-  chute.strokeStyle = '#6a4a3a'; chute.lineWidth = 2;
-  chute.setLineDash([3,3]);
-  chute.beginPath(); chute.moveTo(0,2); chute.lineTo(36,2); chute.stroke();
+  chute.strokeStyle = '#6a3d25'; chute.lineWidth = 2;
+  chute.setLineDash([3,3,8,3]);
+  chute.beginPath(); chute.moveTo(0,2); chute.lineTo(48,2); chute.stroke();
 }
 
 // Resize handler
