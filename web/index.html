@@ -86,11 +86,6 @@ body {
   border-top: 3px solid transparent;
 }
 
-/* Column tints for inactive cells */
-.cell[data-col="0"] { background: var(--col-exposure-tint); border-top-color: var(--col-exposure-dim); }
-.cell[data-col="1"] { background: var(--col-abundance-tint); border-top-color: var(--col-abundance-dim); }
-.cell[data-col="2"] { background: var(--col-investment-tint); border-top-color: var(--col-investment-dim); }
-.cell[data-col="3"] { background: var(--col-occlusion-tint); border-top-color: var(--col-occlusion-dim); }
 
 /* Active cell */
 .cell.active {
@@ -100,10 +95,6 @@ body {
   transform: scale(1.03);
   z-index: 10;
 }
-.cell.active[data-col="0"] { background: #3a2a24; border-top-color: var(--col-exposure); }
-.cell.active[data-col="1"] { background: #243a2c; border-top-color: var(--col-abundance); }
-.cell.active[data-col="2"] { background: #242a38; border-top-color: var(--col-investment); }
-.cell.active[data-col="3"] { background: #2e243a; border-top-color: var(--col-occlusion); }
 
 .cell-words {
   position: absolute;
@@ -192,10 +183,6 @@ body {
   font-size: 14px;
   font-weight: 700;
 }
-.column-titles span:nth-child(1) { color: var(--col-exposure); }
-.column-titles span:nth-child(2) { color: var(--col-abundance); }
-.column-titles span:nth-child(3) { color: var(--col-investment); }
-.column-titles span:nth-child(4) { color: var(--col-occlusion); }
 
 .column-titles-abbrev {
   display: none;
@@ -302,10 +289,6 @@ body {
     font-size: 12px;
     font-weight: 700;
   }
-  .column-titles-abbrev span:nth-child(1) { color: var(--col-exposure); }
-  .column-titles-abbrev span:nth-child(2) { color: var(--col-abundance); }
-  .column-titles-abbrev span:nth-child(3) { color: var(--col-investment); }
-  .column-titles-abbrev span:nth-child(4) { color: var(--col-occlusion); }
 
   body { padding-bottom: 70px; }
 }
@@ -415,8 +398,8 @@ chuteDefs.forEach(([r1,c1,r2,c2]) => {
 });
 
 // Column accent colors for JS use
-const colAccents = ['#e06040','#4cb87a','#5c9ce6','#c07ae6'];
-const colDims = ['#6b3020','#245c3d','#2e4e73','#603d73'];
+const colAccents = ['#a0a0b0','#a0a0b0','#a0a0b0','#a0a0b0'];
+const colDims = ['#505060','#505060','#505060','#505060'];
 const bfsColors = ['','#a0dcff','#80b8d8','#6094b0','#4a7890','#3a6070'];
 const bfsOverlayAlpha = [0, 0.12, 0.08, 0.05, 0.03, 0.02];
 

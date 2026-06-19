@@ -86,18 +86,15 @@ private val CELL_BG_ACTIVE = Color(0xFF32323C)
 private val SLOT_BG = Color(0xFF1A1A20)
 private val SLOT_SHADED = Color(0xFF8A8A96)
 
-// Column accent colors
+// Column colors (neutral — no per-column differentiation)
 private val COL_COLORS = listOf(
-    Color(0xFFE06040), // Exposure (col 0) - red-orange
-    Color(0xFF4CB87A), // Abundance (col 1) - green
-    Color(0xFF5C9CE6), // Investment (col 2) - blue
-    Color(0xFFC07AE6)  // Occlusion (col 3) - purple
+    Color(0xFFA0A0B0), Color(0xFFA0A0B0), Color(0xFFA0A0B0), Color(0xFFA0A0B0)
 )
 private val COL_COLORS_DIM = listOf(
-    Color(0xFF6B3020), Color(0xFF245C3D), Color(0xFF2E4E73), Color(0xFF603D73)
+    Color(0xFF505060), Color(0xFF505060), Color(0xFF505060), Color(0xFF505060)
 )
 private val COL_TINTS = listOf(
-    Color(0xFF2A1F1C), Color(0xFF1C2A22), Color(0xFF1C2028), Color(0xFF241C2A)
+    CELL_BG, CELL_BG, CELL_BG, CELL_BG
 )
 
 // Text hierarchy
@@ -360,7 +357,7 @@ fun FrameworkGrid(
                 FrameworkData.columnTitles.forEachIndexed { col, title ->
                     Text(
                         text = title,
-                        color = COL_COLORS[col],
+                        color = TEXT_SECONDARY,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(cellWidth),
@@ -428,14 +425,6 @@ fun FrameworkCell(
                 )
                 .clickable { onTap() }
         ) {
-            // Border-top accent
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(if (isActive) COL_COLORS[col] else COL_COLORS_DIM[col])
-                    .align(Alignment.TopStart)
-            )
             // Words row at top
             if (!isCompact) {
                 Row(
