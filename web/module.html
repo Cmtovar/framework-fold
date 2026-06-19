@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #141418;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.module {
+  display: flex;
+  gap: 14px;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.square {
+  width: 24px;
+  height: 24px;
+  border-radius: 2px;
+  background: #1a1a20;
+}
+.square.filled {
+  background: #8a8a96;
+}
+
+.col-label {
+  color: #a8a8b4;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="module" id="module"></div>
+<script>
+const mod = document.getElementById('module');
+const labels = ['on','at','at','in','at','in','on','at'];
+const fills = [8,1,1,4,1,4,8,1];
+for (let c = 0; c < 8; c++) {
+  const col = document.createElement('div');
+  col.className = 'column';
+  const lbl = document.createElement('div');
+  lbl.className = 'col-label';
+  lbl.textContent = labels[c];
+  col.appendChild(lbl);
+  for (let r = 0; r < 8; r++) {
+    const sq = document.createElement('div');
+    // row 0 = top = value 8, row 7 = bottom = value 1
+    const value = 8 - r;
+    sq.className = value === fills[c] ? 'square filled' : 'square';
+    col.appendChild(sq);
+  }
+  mod.appendChild(col);
+}
+</script>
+</body>
+</html>
