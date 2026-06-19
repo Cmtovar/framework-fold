@@ -107,9 +107,24 @@ body {
 
 .module {
   display: flex;
-  gap: 22px;
+  gap: 16px;
   width: 340px;
   justify-content: center;
+}
+.module.flat {
+  gap: 0;
+}
+.module.flat .group-title {
+  visibility: hidden;
+}
+.module.flat .group {
+  width: auto;
+}
+.module.flat .group:first-child .group-columns {
+  padding-right: 7px;
+}
+.module.flat .group:last-child .group-columns {
+  padding-left: 7px;
 }
 
 .group {
@@ -176,6 +191,7 @@ body {
     <div class="module" id="module"></div>
     <div class="button-row">
       <button class="btn-small" id="btn-reset" tabindex="-1"></button>
+      <button class="btn-small" id="btn-toggle" tabindex="-1"></button>
       <button class="btn-bar" id="btn-advance" tabindex="-1"></button>
     </div>
   </div>
@@ -219,6 +235,7 @@ function getPairData(pair) {
 }
 
 let activePair = 0;
+let isFlat = false;
 
 function buildSidebar() {
   const sidebar = document.getElementById('sidebar');
@@ -228,7 +245,7 @@ function buildSidebar() {
     const cell = document.createElement('div');
     cell.className = 'sidebar-cell' + (i === activePair ? ' active' : '');
     for (let c = 0; c < 8; c++) {
-      if (c === 4) {
+      if (c === 4 && !isFlat) {
         const spacer = document.createElement('div');
         spacer.style.width = '3px';
         cell.appendChild(spacer);
@@ -322,6 +339,11 @@ buildModule();
 
 document.getElementById('btn-advance').addEventListener('click', advance);
 document.getElementById('btn-reset').addEventListener('click', reset);
+document.getElementById('btn-toggle').addEventListener('click', () => {
+  isFlat = !isFlat;
+  document.getElementById('module').classList.toggle('flat');
+  buildSidebar();
+});
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); advance(); }
   if (e.code === 'KeyR') { reset(); }
