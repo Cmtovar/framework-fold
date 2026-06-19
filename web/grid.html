@@ -10,9 +10,11 @@ body {
   background: #141418;
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  gap: 16px;
 }
 
 .grid {
@@ -27,31 +29,225 @@ body {
   aspect-ratio: 1;
   background: #26262e;
   border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .cell.empty {
   background: transparent;
+  cursor: default;
 }
+
+.cell.active {
+  border-color: #5a5a66;
+  background: #2c2c34;
+}
+.cell.active.mirror {
+  border-color: #f0f0ff;
+  background: #32323c;
+}
+
+.cell-name {
+  color: #a8a8b4;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+
+.cell.active .cell-name {
+  color: #e8e8f0;
+}
+
+#nav-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+#nav-controls .nav-row {
+  display: flex;
+  gap: 6px;
+}
+.nav-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #26262e;
+  border: none;
+  color: #a8a8b4;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-btn:hover:not(:disabled) { background: #32323c; }
+.nav-btn:disabled { opacity: 0.3; cursor: default; }
 </style>
 </head>
 <body>
 <div class="grid" id="grid"></div>
+<div id="nav-controls">
+  <div class="nav-row"><button class="nav-btn" id="btn-up">W</button></div>
+  <div class="nav-row">
+    <button class="nav-btn" id="btn-left">A</button>
+    <button class="nav-btn" id="btn-chute">/</button>
+    <button class="nav-btn" id="btn-right">D</button>
+  </div>
+  <div class="nav-row"><button class="nav-btn" id="btn-down">S</button></div>
+</div>
 <script>
 const SIZE = 6;
+// Original 4x4 lives at rows 2-5, cols 2-5
+const O = 2; // offset
+
+const gridNames = {
+  '0,0':'Switch Out', '0,1':'Rearrange', '0,2':'Maintain', '0,3':'Utilization',
+  '1,0':'Travelling',  '1,1':'Friction',  '1,2':'Coverage', '1,3':'Showing Up',
+  '2,0':'Itemize',     '2,1':'Diagnose',
+  '3,0':'Mobilization','3,1':'Work',
+  '2,2':'Adaptation',  '2,3':'Rest',        '2,4':'Diagnose',    '2,5':'Itemize',
+  '3,2':'Attempt',     '3,3':'Realization',  '3,4':'Work',        '3,5':'Mobilization',
+  '4,2':'Coverage',    '4,3':'Showing Up',   '4,4':'Friction',    '4,5':'Travelling',
+  '5,2':'Maintain',    '5,3':'Utilization',  '5,4':'Rearrange',   '5,5':'Switch Out'
+};
+
+// Navigation cycles (within original 4x4 coords 0-3)
+const horizNext = {0:2, 2:3, 3:1, 1:0}; // 0→2(jump)→3(step)→1(jump)→0(step)
+const vertNext  = {0:2, 2:3, 3:1, 1:0}; // same cycle vertically
+
+const chuteDefs = [[0,0,3,2],[0,1,3,3],[0,2,3,0],[0,3,3,1],[1,0,2,2],[1,1,2,3],[2,0,1,2],[2,1,1,3]];
+const chuteLookup = {};
+chuteDefs.forEach(([r1,c1,r2,c2]) => {
+  const a = r1*4+c1, b = r2*4+c2;
+  chuteLookup[a] = b;
+  chuteLookup[b] = a;
+});
+
+// Active cell in original 4x4 coords (0-3 range)
+let activeR = 0, activeC = 0;
+
 const grid = document.getElementById('grid');
+const cells = [];
 
 for (let r = 0; r < SIZE; r++) {
   for (let c = 0; c < SIZE; c++) {
     const cell = document.createElement('div');
-    // Top-right 2x2: r<2, c>=4
-    // Bottom-left 2x2: r>=4, c<2
     const isEmpty = (r < 2 && c >= 4) || (r >= 4 && c < 2);
     cell.className = isEmpty ? 'cell empty' : 'cell';
     cell.dataset.row = r;
     cell.dataset.col = c;
+
+    const name = gridNames[`${r},${c}`];
+    if (name) {
+      const span = document.createElement('span');
+      span.className = 'cell-name';
+      span.textContent = name;
+      cell.appendChild(span);
+    }
+
+    if (!isEmpty) {
+      cell.addEventListener('click', () => {
+        // Only allow clicking original 4x4 cells
+        if (r >= O && c >= O) {
+          activeR = r - O;
+          activeC = c - O;
+          render();
+        }
+      });
+    }
+
+    cells.push(cell);
     grid.appendChild(cell);
   }
 }
+
+function getCellEl(r, c) {
+  return cells[r * SIZE + c];
+}
+
+// Map original 4x4 coord to its reflected grid position
+function getReflection(r, c) {
+  if (r < 2 && c < 2) return null; // pivot — no reflection
+  if (r < 2 && c >= 2) return [r + O, 3 - c];       // right cols → left
+  if (r >= 2 && c < 2) return [3 - r, c + O];        // bottom rows → top
+  return [3 - r, 3 - c];                              // diagonal
+}
+
+function render() {
+  cells.forEach(cell => { cell.classList.remove('active', 'mirror'); });
+  const isPivot = activeR < 2 && activeC < 2;
+  const mainEl = getCellEl(activeR + O, activeC + O);
+  mainEl.classList.add('active');
+  if (isPivot) mainEl.classList.add('mirror');
+  const ref = getReflection(activeR, activeC);
+  if (ref) {
+    const el = getCellEl(ref[0], ref[1]);
+    el.classList.add('active', 'mirror');
+  }
+  updateNav();
+}
+
+// WASD: absolute directions
+// W(up): 3→1(jump), 1→0(step)
+// S(down): 0→2(jump), 2→3(step)
+// A(left): 3→1(jump), 1→0(step)
+// D(right): 0→2(jump), 2→3(step)
+function updateNav() {
+  document.getElementById('btn-up').disabled = !(activeR===3||activeR===1);
+  document.getElementById('btn-down').disabled = !(activeR===0||activeR===2);
+  document.getElementById('btn-left').disabled = !(activeC===3||activeC===1);
+  document.getElementById('btn-right').disabled = !(activeC===0||activeC===2);
+  document.getElementById('btn-chute').disabled = chuteLookup[activeR*4+activeC] === undefined;
+}
+
+document.getElementById('btn-up').addEventListener('click', () => {
+  if (activeR===3) activeR=1;
+  else if (activeR===1) activeR=0;
+  render();
+});
+document.getElementById('btn-down').addEventListener('click', () => {
+  if (activeR===0) activeR=2;
+  else if (activeR===2) activeR=3;
+  render();
+});
+document.getElementById('btn-left').addEventListener('click', () => {
+  if (activeC===3) activeC=1;
+  else if (activeC===1) activeC=0;
+  render();
+});
+document.getElementById('btn-right').addEventListener('click', () => {
+  if (activeC===0) activeC=2;
+  else if (activeC===2) activeC=3;
+  render();
+});
+document.getElementById('btn-chute').addEventListener('click', () => {
+  const idx = activeR*4+activeC;
+  if (chuteLookup[idx] !== undefined) {
+    const t = chuteLookup[idx];
+    activeR = Math.floor(t/4);
+    activeC = t%4;
+    render();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  if (key === 'w' || key === 'arrowup') { document.getElementById('btn-up').click(); e.preventDefault(); }
+  else if (key === 's' || key === 'arrowdown') { document.getElementById('btn-down').click(); e.preventDefault(); }
+  else if (key === 'a' || key === 'arrowleft') { document.getElementById('btn-left').click(); e.preventDefault(); }
+  else if (key === 'd' || key === 'arrowright') { document.getElementById('btn-right').click(); e.preventDefault(); }
+  else if (key === '/' || key === 'q') { document.getElementById('btn-chute').click(); e.preventDefault(); }
+});
+
+render();
 </script>
 </body>
 </html>
