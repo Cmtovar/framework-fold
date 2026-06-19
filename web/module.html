@@ -15,6 +15,65 @@ body {
   padding: 16px;
 }
 
+.page-layout {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar::-webkit-scrollbar-track {
+  background: #1a1a20;
+  border-radius: 2px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: #3a3a44;
+  border-radius: 2px;
+}
+
+.sidebar-cell {
+  display: flex;
+  gap: 2px;
+  padding: 8px;
+  background: #1e1e24;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar-cell.active {
+  border-color: #4a4a58;
+  background: #26262e;
+}
+
+.mini-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mini-sq {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: #1a1a20;
+}
+.mini-sq.filled {
+  background: #8a8a96;
+}
+
 .wrapper {
   display: flex;
   flex-direction: column;
@@ -49,6 +108,8 @@ body {
 .module {
   display: flex;
   gap: 22px;
+  width: 340px;
+  justify-content: center;
 }
 
 .group {
@@ -56,6 +117,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  width: 150px;
 }
 
 .group-title {
@@ -68,6 +130,7 @@ body {
 .group-columns {
   display: flex;
   gap: 14px;
+  width: fit-content;
 }
 
 .column {
@@ -102,70 +165,148 @@ body {
   font-size: 11px;
   font-weight: 600;
   text-align: center;
+  width: 24px;
 }
 </style>
 </head>
 <body>
-<div class="wrapper">
-  <div class="module" id="module"></div>
-  <div class="button-row">
-    <button class="btn-small" id="btn-reset"></button>
-    <button class="btn-bar" id="btn-advance"></button>
+<div class="page-layout">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="wrapper">
+    <div class="module" id="module"></div>
+    <div class="button-row">
+      <button class="btn-small" id="btn-reset" tabindex="-1"></button>
+      <button class="btn-bar" id="btn-advance" tabindex="-1"></button>
+    </div>
   </div>
 </div>
 <script>
-const mod = document.getElementById('module');
-const labels = ['on','at','at','in','at','in','on','at'];
-const fills = [8,1,1,4,1,4,8,1];
-const groups = [
-  { title: 'Rest', cols: [0,1,2,3] },
-  { title: 'Switch Out', cols: [4,5,6,7] }
+const slotWords = {1:'at',2:'to',3:'by',4:'in',5:'away',6:'of',7:'out',8:'on'};
+const cellNames = {
+  '0,0':'Adaptation','0,1':'Rest','0,2':'Diagnose','0,3':'Itemize',
+  '1,0':'Attempt','1,1':'Realization','1,2':'Work','1,3':'Mobilization',
+  '2,0':'Coverage','2,1':'Showing Up','2,2':'Friction','2,3':'Travelling',
+  '3,0':'Maintain','3,1':'Utilization','3,2':'Rearrange','3,3':'Switch Out'
+};
+const orders = {
+  '0,0':[4,1,5,4],'0,1':[8,1,1,4],'0,2':[8,7,1,6],'0,3':[4,7,5,6],
+  '1,0':[3,8,6,5],'1,1':[7,8,2,5],'1,2':[7,3,2,2],'1,3':[3,3,6,2],
+  '2,0':[2,2,7,3],'2,1':[6,2,3,3],'2,2':[6,5,3,8],'2,3':[2,5,7,8],
+  '3,0':[1,6,8,7],'3,1':[5,6,4,7],'3,2':[5,4,4,1],'3,3':[1,4,8,1]
+};
+
+// Chute pairs: middle-column cell (col 1 or 2) on left, partner on right
+const chutePairs = [
+  { left: '0,1', right: '3,3' },  // Rest ↔ Switch Out
+  { left: '0,2', right: '3,0' },  // Diagnose ↔ Maintain
+  { left: '1,1', right: '2,3' },  // Realization ↔ Travelling
+  { left: '2,2', right: '1,0' },  // Friction ↔ Attempt
+  { left: '1,2', right: '2,0' },  // Work ↔ Coverage
+  { left: '2,1', right: '1,3' },  // Showing Up ↔ Mobilization
+  { left: '3,2', right: '0,0' },  // Rearrange ↔ Adaptation
+  { left: '3,1', right: '0,3' },  // Utilization ↔ Itemize
 ];
 
-groups.forEach(g => {
-  const group = document.createElement('div');
-  group.className = 'group';
+function getPairData(pair) {
+  const lo = orders[pair.left];
+  const ro = orders[pair.right];
+  return {
+    leftName: cellNames[pair.left],
+    rightName: cellNames[pair.right],
+    fills: [...lo, ...ro],
+    labels: [...lo.map(v => slotWords[v]), ...ro.map(v => slotWords[v])]
+  };
+}
 
-  const title = document.createElement('div');
-  title.className = 'group-title';
-  title.textContent = g.title;
-  group.appendChild(title);
+let activePair = 0;
 
-  const cols = document.createElement('div');
-  cols.className = 'group-columns';
-
-  g.cols.forEach(c => {
-    const col = document.createElement('div');
-    col.className = 'column';
-    const lbl = document.createElement('div');
-    lbl.className = 'col-label';
-    lbl.textContent = labels[c];
-    col.appendChild(lbl);
-    for (let r = 0; r < 8; r++) {
-      const sq = document.createElement('div');
-      const value = 8 - r;
-      sq.className = value === fills[c] ? 'square filled' : 'square';
-      col.appendChild(sq);
+function buildSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.innerHTML = '';
+  chutePairs.forEach((pair, i) => {
+    const d = getPairData(pair);
+    const cell = document.createElement('div');
+    cell.className = 'sidebar-cell' + (i === activePair ? ' active' : '');
+    for (let c = 0; c < 8; c++) {
+      if (c === 4) {
+        const spacer = document.createElement('div');
+        spacer.style.width = '3px';
+        cell.appendChild(spacer);
+      }
+      const mc = document.createElement('div');
+      mc.className = 'mini-col';
+      for (let r = 0; r < 8; r++) {
+        const sq = document.createElement('div');
+        const value = 8 - r;
+        sq.className = value === d.fills[c] ? 'mini-sq filled' : 'mini-sq';
+        mc.appendChild(sq);
+      }
+      cell.appendChild(mc);
     }
-    cols.appendChild(col);
+    cell.addEventListener('click', () => {
+      activePair = i;
+      buildSidebar();
+      buildModule();
+    });
+    sidebar.appendChild(cell);
+  });
+}
+
+function buildModule() {
+  const mod = document.getElementById('module');
+  mod.innerHTML = '';
+  const d = getPairData(chutePairs[activePair]);
+
+  [{ title: d.leftName, cols: [0,1,2,3] },
+   { title: d.rightName, cols: [4,5,6,7] }].forEach(g => {
+    const group = document.createElement('div');
+    group.className = 'group';
+
+    const title = document.createElement('div');
+    title.className = 'group-title';
+    title.textContent = g.title;
+    group.appendChild(title);
+
+    const cols = document.createElement('div');
+    cols.className = 'group-columns';
+
+    g.cols.forEach(c => {
+      const col = document.createElement('div');
+      col.className = 'column';
+      const lbl = document.createElement('div');
+      lbl.className = 'col-label';
+      lbl.textContent = d.labels[c];
+      col.appendChild(lbl);
+      for (let r = 0; r < 8; r++) {
+        const sq = document.createElement('div');
+        const value = 8 - r;
+        sq.className = value === d.fills[c] ? 'square filled' : 'square';
+        col.appendChild(sq);
+      }
+      cols.appendChild(col);
+    });
+
+    group.appendChild(cols);
+    mod.appendChild(group);
   });
 
-  group.appendChild(cols);
-  mod.appendChild(group);
-});
+  spotIndex = 0;
+  updateSpotlight();
+}
 
 // Spotlight logic
-const allColumns = document.querySelectorAll('.column');
 let spotIndex = 0;
 
 function updateSpotlight() {
-  allColumns.forEach((col, i) => {
+  const cols = document.querySelectorAll('.column');
+  cols.forEach((col, i) => {
     col.classList.toggle('spotlight', i === spotIndex);
   });
 }
 
 function advance() {
-  if (spotIndex < allColumns.length - 1) {
+  const cols = document.querySelectorAll('.column');
+  if (spotIndex < cols.length - 1) {
     spotIndex++;
     updateSpotlight();
   }
@@ -176,14 +317,15 @@ function reset() {
   updateSpotlight();
 }
 
+buildSidebar();
+buildModule();
+
 document.getElementById('btn-advance').addEventListener('click', advance);
 document.getElementById('btn-reset').addEventListener('click', reset);
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); advance(); }
   if (e.code === 'KeyR') { reset(); }
 });
-
-updateSpotlight();
 </script>
 </body>
 </html>
