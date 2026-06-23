@@ -565,15 +565,22 @@ function render() {
 function drawTraversalPaths() {
   cellElements.forEach((el, idx) => {
     const canvas = el.querySelector('.cell-canvas');
-    const rect = el.getBoundingClientRect();
+    // The active cell is visually scaled with CSS. Keep the canvas bitmap and
+    // its drawing coordinates in the cell's untransformed local coordinate
+    // space so the parent transform is applied exactly once.
+    const width = el.clientWidth;
+    const height = el.clientHeight;
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    const canvasRect = canvas.getBoundingClientRect();
+    const scaleX = canvasRect.width / width;
+    const scaleY = canvasRect.height / height;
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.clearRect(0, 0, width, height);
 
     const r = Math.floor(idx/COLS), c = idx%COLS;
     const key = `${r},${c}`;
@@ -586,8 +593,8 @@ function drawTraversalPaths() {
     slots.forEach(s => {
       const sRect = s.getBoundingClientRect();
       slotCenters[s.dataset.slot] = {
-        x: sRect.left - rect.left + sRect.width/2,
-        y: sRect.top - rect.top + sRect.height/2
+        x: (sRect.left - canvasRect.left + sRect.width/2) / scaleX,
+        y: (sRect.top - canvasRect.top + sRect.height/2) / scaleY
       };
     });
 
