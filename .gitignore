@@ -1,1 +1,4 @@
 release.keystore
+.gradle/
+**/build/
+local.properties

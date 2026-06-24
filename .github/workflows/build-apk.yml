@@ -2,6 +2,8 @@ name: Build & Release APK
 
 on:
   push:
+    branches: ['**']
+  pull_request:
     branches: [main]
 
 permissions:
@@ -24,9 +26,15 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Decode Keystore
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release.keystore
 
+      - name: Build Debug APK
+        if: github.ref != 'refs/heads/main' || github.event_name != 'push'
+        run: ./gradlew assembleDebug
+
       - name: Build Release APK
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: ./gradlew assembleRelease
         env:
           KEYSTORE_FILE: release.keystore
@@ -35,12 +43,14 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Get version name
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         id: version
         run: |
           VERSION=$(grep 'versionName' app/build.gradle.kts | head -1 | grep -o '"[^"]*"' | tr -d '"')
           echo "name=v${VERSION}-build.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
       - name: Create Release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.name }}

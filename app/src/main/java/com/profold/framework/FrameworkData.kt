@@ -49,6 +49,19 @@ object FrameworkData {
         "3,3" to (listOf(1,4,8,1,9) to listOf(2,3))
     )
 
+    data class ChutePair(val left: String, val right: String)
+
+    val chutePairs = listOf(
+        ChutePair("0,1", "3,3"), // Rest ↔ Switch Out — awareness
+        ChutePair("1,1", "2,3"), // Realization ↔ Travelling — elasticity
+        ChutePair("1,2", "2,0"), // Work ↔ Coverage — momentum
+        ChutePair("2,1", "1,3"), // Showing Up ↔ Mobilization — heat
+        ChutePair("2,2", "1,0"), // Friction ↔ Attempt — lying
+        ChutePair("3,1", "0,3"), // Utilization ↔ Itemize — carrying objects
+        ChutePair("3,2", "0,0"), // Rearrange ↔ Adaptation — web
+        ChutePair("0,2", "3,0")  // Diagnose ↔ Maintain — texture
+    )
+
     // Horizontal navigation: one-way cycle per column 0→2→3→1→0
     data class HorizontalMove(val target: Int, val isJump: Boolean)
     val horizontalNext = mapOf(
