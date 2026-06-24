@@ -8,3 +8,7 @@ Chute pair viewer. Displays each chute connection as two groups of 4 columns (8 
 
 ## grid.html
 6x6 expanded grid. (In progress)
+
+## distance.html
+Eight-square depth module. Presents the slot words as a receding path from
+`on` in the foreground to `at` at the farthest point.

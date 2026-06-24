@@ -598,8 +598,10 @@ function drawTraversalPaths() {
       };
     });
 
-    const lineColor = isActive ? '#aaa' : '#888';
-    const dotColor = isActive ? '#aaa' : '#888';
+    // Keep every traversal path distinct from both the dark slots and the
+    // nearly identical #8a8a96 shaded-slot fill. The active path stays brighter.
+    const lineColor = isActive ? '#e0e0e8' : '#b0b0bc';
+    const dotColor = lineColor;
 
     ctx.strokeStyle = lineColor;
     ctx.lineWidth = 1.5;

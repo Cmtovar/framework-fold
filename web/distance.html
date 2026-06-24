@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distance Module</title>
+<style>
+:root {
+  --surface-base: #141418;
+  --surface-stage: #1e1e24;
+  --surface-square: #292932;
+  --surface-square-near: #8a8a96;
+  --text-primary: #e8e8f0;
+  --text-secondary: #a8a8b4;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 24px;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.module {
+  width: min(980px, 100%);
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  height: clamp(320px, 42vw, 420px);
+  overflow: hidden;
+  border: 1px solid #2a2a34;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 23%, #30303a 0, #24242c 26%, var(--surface-stage) 68%);
+  perspective: 820px;
+  perspective-origin: 50% 50%;
+}
+
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(153deg, transparent 48.8%, rgba(176,176,188,0.055) 49%, rgba(176,176,188,0.055) 49.4%, transparent 49.6%);
+}
+
+.distance-track {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.division-arcs {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.division-arcs path {
+  fill: none;
+  stroke: #b0b0bc;
+  stroke-width: 2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.square {
+  --size: 76px;
+  position: absolute;
+  top: var(--top);
+  left: var(--left);
+  display: grid;
+  width: var(--size);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgba(232,232,240,0.13);
+  border-radius: 8px;
+  background: var(--surface-square);
+  box-shadow:
+    0 13px 24px rgba(0,0,0,0.28),
+    inset 0 1px rgba(255,255,255,0.06);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transform:
+    translate(-50%, -50%)
+    translateZ(var(--z))
+    rotateX(-5deg);
+  transition: border-color 160ms, background 160ms, color 160ms, box-shadow 160ms;
+}
+
+.square::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(255,255,255,0.035);
+  border-radius: 4px;
+}
+
+.square.nearest {
+  background: var(--surface-square-near);
+  border-color: rgba(232,232,240,0.42);
+  box-shadow:
+    0 18px 34px rgba(0,0,0,0.34),
+    0 0 22px rgba(200,200,215,0.12),
+    inset 0 1px rgba(255,255,255,0.16);
+  color: var(--text-primary);
+}
+
+.square:nth-child(-n+3) {
+  filter: saturate(0.8) brightness(0.82);
+}
+
+@media (max-width: 600px) {
+  body { padding: 8px; }
+  .stage {
+    height: clamp(280px, 62vw, 360px);
+    border-radius: 12px;
+    perspective: 720px;
+  }
+  .square {
+    --size: 58px;
+    font-size: 12px;
+  }
+}
+</style>
+</head>
+<body>
+<main class="module" aria-label="Distance from on to at">
+  <div class="stage">
+    <svg class="division-arcs" viewBox="0 0 1000 420" preserveAspectRatio="none" aria-hidden="true">
+      <!-- Circular arcs centered on the on and in squares, tangent at 507,208. -->
+      <path d="M 301 -31 A 382 382 0 0 1 507 208 A 382 382 0 0 1 464 518" />
+      <path d="M 560 248 A 55 55 0 0 1 507 208 A 55 55 0 0 1 533 145" />
+    </svg>
+    <div class="distance-track">
+      <!-- Farthest elements come first so nearer squares layer over them. -->
+      <div class="square" style="--left: 86%; --top: 25%; --z: -210px;">at</div>
+      <div class="square" style="--left: 76%; --top: 32%; --z: -170px;">to</div>
+      <div class="square" style="--left: 66%; --top: 39%; --z: -130px;">by</div>
+      <div class="square" style="--left: 56%; --top: 46%; --z:  -90px;">in</div>
+      <div class="square" style="--left: 46%; --top: 53%; --z:  -50px;">away</div>
+      <div class="square" style="--left: 36%; --top: 60%; --z:  -10px;">of</div>
+      <div class="square" style="--left: 26%; --top: 67%; --z:   30px;">out</div>
+      <div class="square nearest" style="--left: 14%; --top: 75%; --z: 70px;">on</div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
