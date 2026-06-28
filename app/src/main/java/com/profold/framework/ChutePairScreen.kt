@@ -249,9 +249,11 @@ private fun PairModule(
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
-        val squareSize = if (maxWidth < 520.dp) 24.dp else 30.dp
-        val columnGap = if (maxWidth < 520.dp) 8.dp else 14.dp
-        val groupGap = if (isFlat) 0.dp else 18.dp
+        val isCompactWidth = maxWidth < 520.dp
+        val squareSize = if (isCompactWidth) 22.dp else 30.dp
+        val columnWidth = if (isCompactWidth) 36.dp else 46.dp
+        val columnGap = if (isCompactWidth) 4.dp else 14.dp
+        val groupGap = if (isFlat) 0.dp else if (isCompactWidth) 10.dp else 18.dp
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(groupGap),
@@ -264,6 +266,7 @@ private fun PairModule(
                 spotlightIndex = spotlightIndex,
                 showTitle = !isFlat,
                 squareSize = squareSize,
+                columnWidth = columnWidth,
                 columnGap = columnGap
             )
             PairGroup(
@@ -273,6 +276,7 @@ private fun PairModule(
                 spotlightIndex = spotlightIndex,
                 showTitle = !isFlat,
                 squareSize = squareSize,
+                columnWidth = columnWidth,
                 columnGap = columnGap
             )
         }
@@ -287,6 +291,7 @@ private fun PairGroup(
     spotlightIndex: Int,
     showTitle: Boolean,
     squareSize: Dp,
+    columnWidth: Dp,
     columnGap: Dp
 ) {
     Column(
@@ -306,7 +311,8 @@ private fun PairGroup(
                     label = data.labels[columnIndex],
                     fill = data.fills[columnIndex],
                     isSpotlighted = columnIndex == spotlightIndex,
-                    squareSize = squareSize
+                    squareSize = squareSize,
+                    columnWidth = columnWidth
                 )
             }
         }
@@ -318,12 +324,14 @@ private fun PairColumn(
     label: String,
     fill: Int,
     isSpotlighted: Boolean,
-    squareSize: Dp
+    squareSize: Dp,
+    columnWidth: Dp
 ) {
     val shape = RoundedCornerShape(6.dp)
     Column(
         modifier = Modifier
-            .then(if (isSpotlighted) Modifier.background(PairSurfaceActive, shape).padding(4.dp) else Modifier),
+            .width(columnWidth)
+            .then(if (isSpotlighted) Modifier.background(PairSurfaceActive, shape).padding(vertical = 4.dp) else Modifier),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -333,7 +341,9 @@ private fun PairColumn(
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
-            modifier = Modifier.width(squareSize)
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.width(columnWidth)
         )
         for (value in 8 downTo 1) {
             Box(

@@ -142,7 +142,10 @@ private val NAV_BTN_TEXT = Color(0xFFA8A8B4)
 fun FrameworkScreen(widthSizeClass: WindowWidthSizeClass) {
     var activeIndex by remember { mutableIntStateOf(0) }
     var showPairs by remember { mutableStateOf(false) }
-    val bfsResult = remember(activeIndex) { FrameworkData.bfs(activeIndex) }
+    var chuteZeroWeight by remember { mutableStateOf(false) }
+    val bfsResult = remember(activeIndex, chuteZeroWeight) {
+        FrameworkData.bfs(activeIndex, chuteZeroWeight = chuteZeroWeight)
+    }
 
     Surface(modifier = Modifier.fillMaxSize(), color = BG) {
         if (showPairs) {
@@ -155,13 +158,17 @@ fun FrameworkScreen(widthSizeClass: WindowWidthSizeClass) {
                 WindowWidthSizeClass.Compact -> CompactLayout(
                     activeIndex = activeIndex,
                     bfsResult = bfsResult,
+                    chuteZeroWeight = chuteZeroWeight,
                     onCellTap = { activeIndex = it },
+                    onToggleChuteZeroWeight = { chuteZeroWeight = !chuteZeroWeight },
                     onOpenPairs = { showPairs = true }
                 )
                 else -> ExpandedLayout(
                     activeIndex = activeIndex,
                     bfsResult = bfsResult,
+                    chuteZeroWeight = chuteZeroWeight,
                     onCellTap = { activeIndex = it },
+                    onToggleChuteZeroWeight = { chuteZeroWeight = !chuteZeroWeight },
                     onOpenPairs = { showPairs = true }
                 )
             }
@@ -211,7 +218,9 @@ private fun moveChute(activeIndex: Int): Int {
 fun ExpandedLayout(
     activeIndex: Int,
     bfsResult: FrameworkData.BfsResult,
+    chuteZeroWeight: Boolean,
     onCellTap: (Int) -> Unit,
+    onToggleChuteZeroWeight: () -> Unit,
     onOpenPairs: () -> Unit
 ) {
     BoxWithConstraints(
@@ -244,6 +253,16 @@ fun ExpandedLayout(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            NavigationControls(
+                activeIndex = activeIndex,
+                chuteZeroWeight = chuteZeroWeight,
+                onNavigate = onCellTap,
+                onToggleChuteZeroWeight = onToggleChuteZeroWeight,
+                onOpenPairs = onOpenPairs
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             TreePanel(
                 activeIndex = activeIndex,
                 bfsResult = bfsResult,
@@ -251,14 +270,6 @@ fun ExpandedLayout(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(280.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            NavigationControls(
-                activeIndex = activeIndex,
-                onNavigate = onCellTap,
-                onOpenPairs = onOpenPairs
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -271,7 +282,9 @@ fun ExpandedLayout(
 fun CompactLayout(
     activeIndex: Int,
     bfsResult: FrameworkData.BfsResult,
+    chuteZeroWeight: Boolean,
     onCellTap: (Int) -> Unit,
+    onToggleChuteZeroWeight: () -> Unit,
     onOpenPairs: () -> Unit
 ) {
     BoxWithConstraints(
@@ -309,8 +322,21 @@ fun CompactLayout(
 
             NavigationControls(
                 activeIndex = activeIndex,
+                chuteZeroWeight = chuteZeroWeight,
                 onNavigate = onCellTap,
+                onToggleChuteZeroWeight = onToggleChuteZeroWeight,
                 onOpenPairs = onOpenPairs
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TreePanel(
+                activeIndex = activeIndex,
+                bfsResult = bfsResult,
+                onNodeTap = onCellTap,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -549,7 +575,9 @@ fun FrameworkCell(
 @Composable
 fun NavigationControls(
     activeIndex: Int,
+    chuteZeroWeight: Boolean,
     onNavigate: (Int) -> Unit,
+    onToggleChuteZeroWeight: () -> Unit,
     onOpenPairs: () -> Unit
 ) {
     val hasChute = FrameworkData.chuteLookup.containsKey(activeIndex)
@@ -601,8 +629,19 @@ fun NavigationControls(
             onClick = { onNavigate(moveDown(activeIndex)) }
         )
 
-        androidx.compose.material3.OutlinedButton(onClick = onOpenPairs) {
-            Text("Pairs")
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            androidx.compose.material3.OutlinedButton(onClick = onToggleChuteZeroWeight) {
+                Text(
+                    text = "/=0",
+                    color = if (chuteZeroWeight) TEXT_PRIMARY else NAV_BTN_TEXT
+                )
+            }
+            androidx.compose.material3.OutlinedButton(onClick = onOpenPairs) {
+                Text("Pairs")
+            }
         }
     }
 }

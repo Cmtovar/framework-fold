@@ -133,21 +133,42 @@ object FrameworkData {
     // BFS from source
     data class BfsResult(val dist: IntArray, val parents: Array<MutableList<Int>>)
 
-    fun bfs(source: Int): BfsResult {
+    fun bfs(source: Int, chuteZeroWeight: Boolean = false): BfsResult {
         val n = ROWS * COLS
         val dist = IntArray(n) { -1 }
         val parents = Array(n) { mutableListOf<Int>() }
         dist[source] = 0
+
+        if (chuteZeroWeight) {
+            val deque = ArrayDeque<Int>()
+            deque.add(source)
+            while (deque.isNotEmpty()) {
+                val cur = deque.removeFirst()
+                for ((nb, cost) in getNeighborsWeighted(cur, chuteZeroWeight = true)) {
+                    val nd = dist[cur] + cost
+                    if (dist[nb] == -1 || nd < dist[nb]) {
+                        dist[nb] = nd
+                        parents[nb].clear()
+                        parents[nb].add(cur)
+                        if (cost == 0) deque.addFirst(nb) else deque.addLast(nb)
+                    } else if (dist[nb] == nd) {
+                        parents[nb].add(cur)
+                    }
+                }
+            }
+            return BfsResult(dist, parents)
+        }
+
         val queue = ArrayDeque<Int>()
         queue.add(source)
         while (queue.isNotEmpty()) {
             val cur = queue.removeFirst()
-            for (nb in getNeighbors(cur)) {
+            for ((nb, cost) in getNeighborsWeighted(cur, chuteZeroWeight = false)) {
                 if (dist[nb] == -1) {
-                    dist[nb] = dist[cur] + 1
+                    dist[nb] = dist[cur] + cost
                     parents[nb].add(cur)
                     queue.add(nb)
-                } else if (dist[nb] == dist[cur] + 1) {
+                } else if (dist[nb] == dist[cur] + cost) {
                     parents[nb].add(cur)
                 }
             }
@@ -155,15 +176,15 @@ object FrameworkData {
         return BfsResult(dist, parents)
     }
 
-    private fun getNeighbors(idx: Int): List<Int> {
+    private fun getNeighborsWeighted(idx: Int, chuteZeroWeight: Boolean): List<Pair<Int, Int>> {
         val r = idx / COLS
         val c = idx % COLS
-        val neighbors = mutableListOf<Int>()
-        if (r > 0) neighbors.add(idx - COLS)
-        if (r < ROWS - 1) neighbors.add(idx + COLS)
+        val neighbors = mutableListOf<Pair<Int, Int>>()
+        if (r > 0) neighbors.add((idx - COLS) to 1)
+        if (r < ROWS - 1) neighbors.add((idx + COLS) to 1)
         val next = horizontalNext[c]!!
-        neighbors.add(r * COLS + next.target)
-        chuteLookup[idx]?.let { neighbors.add(it) }
+        neighbors.add((r * COLS + next.target) to 1)
+        chuteLookup[idx]?.let { neighbors.add(it to if (chuteZeroWeight) 0 else 1) }
         return neighbors
     }
 }
