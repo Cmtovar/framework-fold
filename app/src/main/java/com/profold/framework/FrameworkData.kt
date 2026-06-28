@@ -62,13 +62,19 @@ object FrameworkData {
         ChutePair("0,2", "3,0")  // Diagnose ↔ Maintain — texture
     )
 
-    // Horizontal navigation: one-way cycle per column 0→2→3→1→0
-    data class HorizontalMove(val target: Int, val isJump: Boolean)
+    // Row/column navigation: one-way cycle 0→2→3→1→0
+    data class CycleMove(val target: Int, val isJump: Boolean)
     val horizontalNext = mapOf(
-        0 to HorizontalMove(2, true),   // 0→2 jump
-        2 to HorizontalMove(3, false),  // 2→3 step
-        3 to HorizontalMove(1, true),   // 3→1 jump
-        1 to HorizontalMove(0, false)   // 1→0 step
+        0 to CycleMove(2, true),   // 0→2 jump
+        2 to CycleMove(3, false),  // 2→3 step
+        3 to CycleMove(1, true),   // 3→1 jump
+        1 to CycleMove(0, false)   // 1→0 step
+    )
+    val verticalNext = mapOf(
+        0 to CycleMove(2, true),   // 0→2 jump
+        2 to CycleMove(3, false),  // 2→3 step
+        3 to CycleMove(1, true),   // 3→1 jump
+        1 to CycleMove(0, false)   // 1→0 step
     )
 
     // Chute/ladder connections (bidirectional)
@@ -100,15 +106,16 @@ object FrameworkData {
         for (r in 0 until ROWS) {
             for (c in 0 until COLS) {
                 val idx = r * COLS + c
-                // Vertical step (bidirectional)
-                if (r < ROWS - 1) {
-                    list.add(Connection(idx, idx + COLS, ConnectionType.STEP, false))
-                }
+                // Vertical (directed, one-way)
+                val vertical = verticalNext[r]!!
+                val verticalToIdx = vertical.target * COLS + c
+                list.add(Connection(idx, verticalToIdx,
+                    if (vertical.isJump) ConnectionType.JUMP else ConnectionType.STEP, true))
                 // Horizontal (directed, one-way)
-                val next = horizontalNext[c]!!
-                val toIdx = r * COLS + next.target
-                list.add(Connection(idx, toIdx,
-                    if (next.isJump) ConnectionType.JUMP else ConnectionType.STEP, true))
+                val horizontal = horizontalNext[c]!!
+                val horizontalToIdx = r * COLS + horizontal.target
+                list.add(Connection(idx, horizontalToIdx,
+                    if (horizontal.isJump) ConnectionType.JUMP else ConnectionType.STEP, true))
             }
         }
         // Chutes (bidirectional)
@@ -180,10 +187,10 @@ object FrameworkData {
         val r = idx / COLS
         val c = idx % COLS
         val neighbors = mutableListOf<Pair<Int, Int>>()
-        if (r > 0) neighbors.add((idx - COLS) to 1)
-        if (r < ROWS - 1) neighbors.add((idx + COLS) to 1)
-        val next = horizontalNext[c]!!
-        neighbors.add((r * COLS + next.target) to 1)
+        val vertical = verticalNext[r]!!
+        neighbors.add((vertical.target * COLS + c) to 1)
+        val horizontal = horizontalNext[c]!!
+        neighbors.add((r * COLS + horizontal.target) to 1)
         chuteLookup[idx]?.let { neighbors.add(it to if (chuteZeroWeight) 0 else 1) }
         return neighbors
     }

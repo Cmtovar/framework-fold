@@ -12,8 +12,8 @@ android {
         applicationId = "com.profold.framework"
         minSdk = 30
         targetSdk = 35
-        versionCode = 8
-        versionName = "2.2.1"
+        versionCode = 9
+        versionName = "2.2.2"
 
         buildConfigField("String", "GITHUB_REPO", "\"Cmtovar/framework-fold\"")
 

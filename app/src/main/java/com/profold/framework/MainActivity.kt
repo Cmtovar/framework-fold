@@ -179,12 +179,22 @@ fun FrameworkScreen(widthSizeClass: WindowWidthSizeClass) {
 // Navigation helpers
 private fun moveUp(activeIndex: Int): Int {
     val row = activeIndex / FrameworkData.COLS
-    return if (row > 0) activeIndex - FrameworkData.COLS else activeIndex
+    val col = activeIndex % FrameworkData.COLS
+    return when (row) {
+        3 -> 1 * FrameworkData.COLS + col
+        1 -> 0 * FrameworkData.COLS + col
+        else -> activeIndex
+    }
 }
 
 private fun moveDown(activeIndex: Int): Int {
     val row = activeIndex / FrameworkData.COLS
-    return if (row < FrameworkData.ROWS - 1) activeIndex + FrameworkData.COLS else activeIndex
+    val col = activeIndex % FrameworkData.COLS
+    return when (row) {
+        0 -> 2 * FrameworkData.COLS + col
+        2 -> 3 * FrameworkData.COLS + col
+        else -> activeIndex
+    }
 }
 
 // Horizontal right: only works from columns 0,2 (ArrowRight)
@@ -591,7 +601,7 @@ fun NavigationControls(
         // Up button
         NavButton(
             label = "W",
-            enabled = row > 0,
+            enabled = row == 3 || row == 1,
             onClick = { onNavigate(moveUp(activeIndex)) }
         )
 
@@ -625,7 +635,7 @@ fun NavigationControls(
         // Down button
         NavButton(
             label = "S",
-            enabled = row < FrameworkData.ROWS - 1,
+            enabled = row == 0 || row == 2,
             onClick = { onNavigate(moveDown(activeIndex)) }
         )
 
